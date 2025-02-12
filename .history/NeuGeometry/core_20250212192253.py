@@ -728,73 +728,6 @@ def circ_var(samples, high=2*jnp.pi, low=0, axis=None, weights=None):
     R = jnp.sqrt(sum_sin**2 + sum_cos**2) / count
     return 1 - R
 
-@jit
-def circ_std(samples, high=2*jnp.pi, low=0, axis=None, weights=None):
-    """
-    Compute the circular standard deviation of an array of angles.
-    
-    The circular standard deviation is defined as:
-    
-        circstd = sqrt(-2 * log(R))
-    
-    where R is the mean resultant length computed from the sine and cosine of the
-    angles (after mapping to [0, 2π)). The result is then scaled back to the original
-    units so that if `high - low` does not equal 2π the output is in the same scale
-    as the input.
-    
-    Parameters
-    ----------
-    samples : array_like
-        Input angles.
-    high : float, optional
-        The high end of the interval (default is 2π).
-    low : float, optional
-        The low end of the interval (default is 0).
-    axis : int or None, optional
-        The axis along which to compute the statistic. If None, the array is flattened.
-    weights : array_like or None, optional
-        Optional weights for each angle.
-    
-    Returns
-    -------
-    circ_std : jnp.ndarray
-        The circular standard deviation, in the same units as the input.
-    """
-    samples = jnp.asarray(samples)
-    period = high - low
-
-    # If no axis is specified, flatten the array and use axis 0.
-    if axis is None:
-        samples = samples.ravel()
-        axis = 0
-
-    # Wrap samples into [low, high)
-    wrapped = (samples - low) % period
-
-    # Map to [0, 2π)
-    ang = 2 * jnp.pi * wrapped / period
-
-    if weights is None:
-        sum_sin = jnp.sum(jnp.sin(ang), axis=axis)
-        sum_cos = jnp.sum(jnp.cos(ang), axis=axis)
-        count = samples.shape[axis]
-    else:
-        weights = jnp.asarray(weights)
-        sum_sin = jnp.sum(jnp.sin(ang) * weights, axis=axis)
-        sum_cos = jnp.sum(jnp.cos(ang) * weights, axis=axis)
-        count = jnp.sum(weights, axis=axis)
-
-    # Mean resultant length
-    R = jnp.sqrt(sum_sin**2 + sum_cos**2) / count
-    # Prevent log(0)
-    R = jnp.clip(R, a_min=1e-12)
-    # Circular standard deviation in radians
-    std_rad = jnp.sqrt(-2 * jnp.log(R))
-    # Map back to original units: if period != 2π, then:
-    std = low + (std_rad / (2 * jnp.pi)) * period
-    return std
-
-
 """
 ### To Do
 
@@ -802,6 +735,7 @@ def circ_std(samples, high=2*jnp.pi, low=0, axis=None, weights=None):
 
 - rotate to ensure given points are in given quadrants.
 
+- circ mean and variance and std
 
 """
 

@@ -802,6 +802,7 @@ def circ_std(samples, high=2*jnp.pi, low=0, axis=None, weights=None):
 
 - rotate to ensure given points are in given quadrants.
 
+- circ mean and variance and std
 
 """
 
