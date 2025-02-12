@@ -301,14 +301,14 @@ def robust_covariance_mest(
     X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100
 ) -> jnp.ndarray:
     """
-    Compute a robust covariance matrix using an M‐estimator with a Huber‐like weighting scheme.
+    Compute a robust covariance matrix using an M‐estimator with a Huber-like weighting scheme.
     
     Parameters
     ----------
     X : jnp.ndarray
         Input data of shape (n_samples, n_features).
     c : float, optional
-        Tuning constant for the Huber‐like weight function (default: 1.5).
+        Tuning constant for the Huber-like weight function (default: 1.5).
     tol : float, optional
         Convergence tolerance (default: 1e-6).
     max_iter : int, optional
@@ -335,25 +335,26 @@ def robust_covariance_mest(
     def body_fn(state):
         mu, sigma, i, _ = state
         diff = X - mu
-        # Add a small regularization term for numerical stability.
+        # Add small regularization for numerical stability.
         inv_sigma = jnp.linalg.inv(sigma + jnp.eye(d) * 1e-6)
         # Compute squared Mahalanobis distances.
         mahal = jnp.sum((diff @ inv_sigma) * diff, axis=1)
-        # Compute weights: downweight points with large Mahalanobis distances.
+        # Compute weights to downweight outliers.
         weights = jnp.where(mahal < c**2, 1.0, c**2 / mahal)
         # Update the weighted mean.
         new_mu = jnp.sum(weights[:, None] * X, axis=0) / jnp.sum(weights)
         weighted_diff = X - new_mu
         # Update the weighted covariance.
         new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(weights)
-        # Check convergence (using the change in the mean).
+        # Check convergence (using change in the mean).
         converged = jnp.linalg.norm(new_mu - mu) < tol
         return (new_mu, new_sigma, i + 1, converged)
 
     mu_final, sigma_final, _, _ = lax.while_loop(cond_fn, body_fn, state0)
     return sigma_final
 
-@jit
+
+@jit(static_argnames=('robust', 'center', 'PCA', 'sort', 'transpose'))
 def coord_eig_decomp(
     coords: jnp.ndarray,
     robust: bool = True,
@@ -388,54 +389,28 @@ def coord_eig_decomp(
           - eigenvalues (as a 1D array)
           - eigenvectors (as a 2D array, transposed if requested)
     """
-    # (1) Conditionally center the coordinates.
-    coords = lax.cond(
-        center,
-        lambda c: c - jnp.mean(c, axis=0),
-        lambda c: c,
-        coords
-    )
+    # Center the coordinates if requested.
+    if center:
+        coords = coords - jnp.mean(coords, axis=0)
 
-    # (2) Compute the covariance matrix using robust estimation or the standard method.
-    cov = lax.cond(
-        robust,
-        lambda c: robust_covariance_mest(c),
-        lambda c: jnp.cov(c, rowvar=False, bias=True),
-        coords
-    )
+    # Compute the covariance matrix: robust or standard.
+    cov = robust_covariance_mest(coords) if robust else jnp.cov(coords, rowvar=False, bias=True)
 
-    # (3) Compute the eigendecomposition (using eigh for symmetric matrices).
+    # Compute the eigendecomposition. (Use eigh since cov is symmetric.)
     evals, evecs = jnp.linalg.eigh(cov)
 
-    # (4) Conditionally normalize eigenvalues so that they sum to 1 (PCA mode).
-    evals = lax.cond(
-        PCA,
-        lambda e: e / jnp.sum(e),
-        lambda e: e,
-        evals
-    )
+    # Normalize eigenvalues to sum to 1 if PCA mode is desired.
+    if PCA:
+        evals = evals / jnp.sum(evals)
 
-    # (5) Conditionally sort eigenvalues (and corresponding eigenvectors) in descending order.
-    def sort_fn(args):
-        ev, evec = args
-        sort_inds = jnp.argsort(ev)[::-1]
-        return (ev[sort_inds], evec[:, sort_inds])
-    evals, evecs = lax.cond(
-        sort,
-        sort_fn,
-        lambda args: args,
-        (evals, evecs)
-    )
+    # Sort eigenvalues and eigenvectors in descending order if requested.
+    if sort:
+        sort_inds = jnp.argsort(evals)[::-1]
+        evals = evals[sort_inds]
+        evecs = evecs[:, sort_inds]
 
-    # (6) Conditionally transpose the eigenvector matrix.
-    evecs = lax.cond(
-        transpose,
-        lambda ev: ev.T,
-        lambda ev: ev,
-        evecs
-    )
+    # Optionally transpose the eigenvectors.
+    if transpose:
+        evecs = evecs.T
 
     return evals, evecs
-
-
-

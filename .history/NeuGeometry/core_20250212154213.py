@@ -2,7 +2,6 @@ from jax import jit, lax
 import jax.numpy as jnp
 import jax.random as jr
 
-
 @jit
 def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     """Normalizes a 1D or 2D array using the L2 norm, avoiding division by zero.
@@ -24,7 +23,6 @@ def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
     norm = jnp.maximum(norm, eps)  # Avoid division by zero
     return arr / norm
 
-
 @jit
 def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
     """Calculate the Euclidean norm (magnitude) of a given array.
@@ -41,10 +39,8 @@ def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
     """
     if arr.ndim not in {1, 2}:
         return jnp.full((), jnp.nan)  # Return a scalar NaN instead of full_like(arr)
-
-    return jnp.sqrt(
-        jnp.sum(arr**2, axis=-1)
-    )  # Equivalent to jnp.linalg.norm but faster
+    
+    return jnp.sqrt(jnp.sum(arr**2, axis=-1))  # Equivalent to jnp.linalg.norm but faster
 
 
 @jit
@@ -82,7 +78,6 @@ def pairwise_euclidean(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
         ),  # Return NaNs for invalid cases
     )
     return distances
-
 
 @jit
 def reject(v: jnp.ndarray, from_v: jnp.ndarray) -> jnp.ndarray:
@@ -188,9 +183,7 @@ def angle(
 
     # Ensure broadcastability along the first axis
     if (v1.shape[0] != v2.shape[0]) and (v1.shape[0] != 1) and (v2.shape[0] != 1):
-        raise ValueError(
-            "v1 and v2 must have the same number of rows or be broadcastable."
-        )
+        raise ValueError("v1 and v2 must have the same number of rows or be broadcastable.")
 
     # Handle broadcasting by expanding the singleton dimension if necessary
     if v1.shape[0] == 1:
@@ -219,7 +212,6 @@ def angle(
     if orig_v1_is_1d and orig_v2_is_1d:
         return angles.item()  # Return a float for single vectors
     return angles  # Return a 1D array otherwise
-
 
 @jit
 def signed_angle(
@@ -259,23 +251,15 @@ def signed_angle(
     if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
         v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
     ):
-        raise ValueError(
-            "v1, v2, and plane_normal must be broadcastable along the first axis."
-        )
+        raise ValueError("v1, v2, and plane_normal must be broadcastable along the first axis.")
 
     # Broadcast each input to match the maximum batch size
     if v1.shape[0] == 1:
-        v1 = jnp.broadcast_to(
-            v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
-        )
+        v1 = jnp.broadcast_to(v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1]))
     if v2.shape[0] == 1:
-        v2 = jnp.broadcast_to(
-            v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
-        )
+        v2 = jnp.broadcast_to(v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1]))
     if plane_normal.shape[0] == 1:
-        plane_normal = jnp.broadcast_to(
-            plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
-        )
+        plane_normal = jnp.broadcast_to(plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1]))
 
     # Compute the cross product between v1 and v2
     cross_prod = jnp.cross(v1, v2)
@@ -296,146 +280,90 @@ def signed_angle(
         return result.item()  # Return scalar float
     return result  # Return 1D array otherwise
 
+
 @jit
-def robust_covariance_mest(
-    X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100
-) -> jnp.ndarray:
+def robust_covariance_mcd(X: jnp.ndarray, h_frac: float = 0.75, key: jr.PRNGKey = jr.PRNGKey(0)):
     """
-    Compute a robust covariance matrix using an M‐estimator with a Huber‐like weighting scheme.
-    
+    Compute an approximate robust covariance matrix using a subsampling-based Minimum Covariance Determinant (MCD) approach.
+
     Parameters
     ----------
     X : jnp.ndarray
-        Input data of shape (n_samples, n_features).
-    c : float, optional
-        Tuning constant for the Huber‐like weight function (default: 1.5).
-    tol : float, optional
-        Convergence tolerance (default: 1e-6).
-    max_iter : int, optional
-        Maximum number of iterations (default: 100).
-    
+        Input data (n_samples, n_features).
+    h_frac : float, optional
+        Fraction of points to use for MCD (default 75%).
+    key : jax.random.PRNGKey, optional
+        Random key for subsampling.
+
     Returns
     -------
     jnp.ndarray
-        Robust covariance matrix of shape (n_features, n_features).
+        Robust covariance matrix (n_features, n_features).
     """
     n, d = X.shape
-    # Initialize with the classical mean and covariance.
-    mu0 = jnp.mean(X, axis=0)
-    diff0 = X - mu0
-    sigma0 = jnp.cov(diff0, rowvar=False, bias=True)
+    h = int(h_frac * n)  # Number of points to keep
 
-    # State: (current mean, current covariance, iteration counter, converged flag)
-    state0 = (mu0, sigma0, 0, False)
+    # Randomly select a subset of h points
+    key, subkey = jr.split(key)
+    indices = jr.choice(subkey, n, shape=(h,), replace=False)
+    X_sub = X[indices]
 
-    def cond_fn(state):
-        mu, sigma, i, converged = state
-        return jnp.logical_and(i < max_iter, jnp.logical_not(converged))
+    # Compute classical covariance for the subset
+    mu = jnp.mean(X_sub, axis=0)
+    diff = X_sub - mu
+    cov_matrix = (diff.T @ diff) / h  # MCD estimate
 
-    def body_fn(state):
-        mu, sigma, i, _ = state
-        diff = X - mu
-        # Add a small regularization term for numerical stability.
-        inv_sigma = jnp.linalg.inv(sigma + jnp.eye(d) * 1e-6)
-        # Compute squared Mahalanobis distances.
-        mahal = jnp.sum((diff @ inv_sigma) * diff, axis=1)
-        # Compute weights: downweight points with large Mahalanobis distances.
-        weights = jnp.where(mahal < c**2, 1.0, c**2 / mahal)
-        # Update the weighted mean.
-        new_mu = jnp.sum(weights[:, None] * X, axis=0) / jnp.sum(weights)
-        weighted_diff = X - new_mu
-        # Update the weighted covariance.
-        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(weights)
-        # Check convergence (using the change in the mean).
-        converged = jnp.linalg.norm(new_mu - mu) < tol
-        return (new_mu, new_sigma, i + 1, converged)
+    return cov_matrix
 
-    mu_final, sigma_final, _, _ = lax.while_loop(cond_fn, body_fn, state0)
-    return sigma_final
+import jax.numpy as jnp
+from jax import jit
 
 @jit
-def coord_eig_decomp(
-    coords: jnp.ndarray,
-    robust: bool = True,
-    center: bool = False,
-    PCA: bool = True,
-    sort: bool = True,
-    transpose: bool = True,
-) -> tuple[jnp.ndarray, jnp.ndarray]:
+def robust_covariance_mest(X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100):
     """
-    Compute the eigendecomposition of the covariance matrix for a set of coordinates,
-    with options for robust covariance estimation and PCA normalization.
-    
+    Compute a robust covariance matrix using an M-estimator with Huber-like weighting.
+
     Parameters
     ----------
-    coords : jnp.ndarray
-        Input coordinates of shape (n_samples, n_features).
-    robust : bool, optional
-        If True, use robust covariance estimation (default: True).
-    center : bool, optional
-        If True, center the data by subtracting the mean (default: False).
-    PCA : bool, optional
-        If True, normalize eigenvalues so that they represent the fraction of variance explained (default: True).
-    sort : bool, optional
-        If True, sort eigenvalues and eigenvectors in descending order (default: True).
-    transpose : bool, optional
-        If True, return eigenvectors as rows rather than columns (default: True).
-    
+    X : jnp.ndarray
+        Input data (n_samples, n_features).
+    c : float, optional
+        Tuning constant for the Huber-like weight function (default is 1.5).
+    tol : float, optional
+        Convergence tolerance.
+    max_iter : int, optional
+        Maximum number of iterations.
+
     Returns
     -------
-    tuple[jnp.ndarray, jnp.ndarray]
-        A tuple containing:
-          - eigenvalues (as a 1D array)
-          - eigenvectors (as a 2D array, transposed if requested)
+    jnp.ndarray
+        Robust covariance matrix (n_features, n_features).
     """
-    # (1) Conditionally center the coordinates.
-    coords = lax.cond(
-        center,
-        lambda c: c - jnp.mean(c, axis=0),
-        lambda c: c,
-        coords
-    )
+    n, d = X.shape
+    mu = jnp.mean(X, axis=0)
 
-    # (2) Compute the covariance matrix using robust estimation or the standard method.
-    cov = lax.cond(
-        robust,
-        lambda c: robust_covariance_mest(c),
-        lambda c: jnp.cov(c, rowvar=False, bias=True),
-        coords
-    )
+    for _ in range(max_iter):
+        # Compute Mahalanobis distance
+        diff = X - mu
+        sigma = jnp.cov(diff, rowvar=False, bias=True)  # Initialize covariance
+        inv_sigma = jnp.linalg.inv(sigma + jnp.eye(d) * 1e-6)  # Add small regularization
 
-    # (3) Compute the eigendecomposition (using eigh for symmetric matrices).
-    evals, evecs = jnp.linalg.eigh(cov)
+        # Compute squared Mahalanobis distances
+        mahal = jnp.sum(diff @ inv_sigma * diff, axis=1)
 
-    # (4) Conditionally normalize eigenvalues so that they sum to 1 (PCA mode).
-    evals = lax.cond(
-        PCA,
-        lambda e: e / jnp.sum(e),
-        lambda e: e,
-        evals
-    )
+        # Compute weights using a Huber-like function
+        weights = jnp.where(mahal < c**2, 1.0, c**2 / mahal)
 
-    # (5) Conditionally sort eigenvalues (and corresponding eigenvectors) in descending order.
-    def sort_fn(args):
-        ev, evec = args
-        sort_inds = jnp.argsort(ev)[::-1]
-        return (ev[sort_inds], evec[:, sort_inds])
-    evals, evecs = lax.cond(
-        sort,
-        sort_fn,
-        lambda args: args,
-        (evals, evecs)
-    )
+        # Compute weighted mean
+        new_mu = jnp.sum(weights[:, None] * X, axis=0) / jnp.sum(weights)
 
-    # (6) Conditionally transpose the eigenvector matrix.
-    evecs = lax.cond(
-        transpose,
-        lambda ev: ev.T,
-        lambda ev: ev,
-        evecs
-    )
+        # Compute weighted covariance
+        weighted_diff = X - new_mu
+        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(weights)
 
-    return evals, evecs
+        # Check for convergence
+        if jnp.linalg.norm(new_mu - mu) < tol:
+            break
+        mu = new_mu
 
-
-
+    return new_sigma

@@ -295,6 +295,9 @@ def signed_angle(
     if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
         return result.item()  # Return scalar float
     return result  # Return 1D array otherwise
+import jax
+import jax.numpy as jnp
+from jax import jit, lax
 
 @jit
 def robust_covariance_mest(
@@ -438,4 +441,25 @@ def coord_eig_decomp(
     return evals, evecs
 
 
+# Usage example:
+if __name__ == "__main__":
+    import jax.random as jr
+
+    # Generate some random data: 100 samples in 3 dimensions.
+    key = jr.PRNGKey(0)
+    coords = jr.normal(key, (100, 3))
+
+    # Compute the eigendecomposition using the robust covariance estimator,
+    # centering the data and normalizing eigenvalues for PCA.
+    evals, evecs = coord_eig_decomp(
+        coords,
+        robust=True,
+        center=True,
+        PCA=True,
+        sort=True,
+        transpose=True
+    )
+
+    print("Eigenvalues:", evals)
+    print("Eigenvectors:\n", evecs)
 

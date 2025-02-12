@@ -296,24 +296,27 @@ def signed_angle(
         return result.item()  # Return scalar float
     return result  # Return 1D array otherwise
 
+
 @jit
 def robust_covariance_mest(
     X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100
 ) -> jnp.ndarray:
     """
-    Compute a robust covariance matrix using an M‐estimator with a Huber‐like weighting scheme.
-    
+    Compute a robust covariance matrix using an M‐estimator with a Huber-like weighting scheme.
+
+    This function iteratively updates the mean and covariance estimate to downweight outliers.
+
     Parameters
     ----------
     X : jnp.ndarray
         Input data of shape (n_samples, n_features).
     c : float, optional
-        Tuning constant for the Huber‐like weight function (default: 1.5).
+        Tuning constant for the Huber-like weight function (default: 1.5).
     tol : float, optional
         Convergence tolerance (default: 1e-6).
     max_iter : int, optional
         Maximum number of iterations (default: 100).
-    
+
     Returns
     -------
     jnp.ndarray
@@ -325,33 +328,39 @@ def robust_covariance_mest(
     diff0 = X - mu0
     sigma0 = jnp.cov(diff0, rowvar=False, bias=True)
 
-    # State: (current mean, current covariance, iteration counter, converged flag)
+    # The state is a tuple: (current mean, current covariance, iteration counter, converged flag)
     state0 = (mu0, sigma0, 0, False)
 
     def cond_fn(state):
+        # Continue iterating while iteration count is less than max_iter and not yet converged.
         mu, sigma, i, converged = state
         return jnp.logical_and(i < max_iter, jnp.logical_not(converged))
 
     def body_fn(state):
         mu, sigma, i, _ = state
         diff = X - mu
-        # Add a small regularization term for numerical stability.
+        # Regularize sigma slightly for numerical stability.
         inv_sigma = jnp.linalg.inv(sigma + jnp.eye(d) * 1e-6)
         # Compute squared Mahalanobis distances.
         mahal = jnp.sum((diff @ inv_sigma) * diff, axis=1)
-        # Compute weights: downweight points with large Mahalanobis distances.
+        # Compute weights; downweight points with large distances.
         weights = jnp.where(mahal < c**2, 1.0, c**2 / mahal)
         # Update the weighted mean.
         new_mu = jnp.sum(weights[:, None] * X, axis=0) / jnp.sum(weights)
         weighted_diff = X - new_mu
         # Update the weighted covariance.
-        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(weights)
-        # Check convergence (using the change in the mean).
+        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(
+            weights
+        )
+        # Check convergence: if the mean has changed little.
         converged = jnp.linalg.norm(new_mu - mu) < tol
         return (new_mu, new_sigma, i + 1, converged)
 
-    mu_final, sigma_final, _, _ = lax.while_loop(cond_fn, body_fn, state0)
+    mu_final, sigma_final, i_final, converged_final = lax.while_loop(
+        cond_fn, body_fn, state0
+    )
     return sigma_final
+
 
 @jit
 def coord_eig_decomp(
@@ -365,7 +374,7 @@ def coord_eig_decomp(
     """
     Compute the eigendecomposition of the covariance matrix for a set of coordinates,
     with options for robust covariance estimation and PCA normalization.
-    
+
     Parameters
     ----------
     coords : jnp.ndarray
@@ -380,7 +389,7 @@ def coord_eig_decomp(
         If True, sort eigenvalues and eigenvectors in descending order (default: True).
     transpose : bool, optional
         If True, return eigenvectors as rows rather than columns (default: True).
-    
+
     Returns
     -------
     tuple[jnp.ndarray, jnp.ndarray]
@@ -388,54 +397,33 @@ def coord_eig_decomp(
           - eigenvalues (as a 1D array)
           - eigenvectors (as a 2D array, transposed if requested)
     """
-    # (1) Conditionally center the coordinates.
-    coords = lax.cond(
-        center,
-        lambda c: c - jnp.mean(c, axis=0),
-        lambda c: c,
-        coords
+    # Optionally center the coordinates.
+    if center:
+        coords = coords - jnp.mean(coords, axis=0)
+
+    # Compute the covariance matrix: robust or standard.
+    cov = (
+        robust_covariance_mest(coords)
+        if robust
+        else jnp.cov(coords, rowvar=False, bias=True)
     )
 
-    # (2) Compute the covariance matrix using robust estimation or the standard method.
-    cov = lax.cond(
-        robust,
-        lambda c: robust_covariance_mest(c),
-        lambda c: jnp.cov(c, rowvar=False, bias=True),
-        coords
-    )
-
-    # (3) Compute the eigendecomposition (using eigh for symmetric matrices).
+    # Compute the eigendecomposition.
+    # Since the covariance matrix is symmetric, eigh is more stable and efficient.
     evals, evecs = jnp.linalg.eigh(cov)
 
-    # (4) Conditionally normalize eigenvalues so that they sum to 1 (PCA mode).
-    evals = lax.cond(
-        PCA,
-        lambda e: e / jnp.sum(e),
-        lambda e: e,
-        evals
-    )
+    # Normalize eigenvalues to sum to 1 (variance explained) if requested.
+    if PCA:
+        evals = evals / jnp.sum(evals)
 
-    # (5) Conditionally sort eigenvalues (and corresponding eigenvectors) in descending order.
-    def sort_fn(args):
-        ev, evec = args
-        sort_inds = jnp.argsort(ev)[::-1]
-        return (ev[sort_inds], evec[:, sort_inds])
-    evals, evecs = lax.cond(
-        sort,
-        sort_fn,
-        lambda args: args,
-        (evals, evecs)
-    )
+    # Sort eigenvalues and eigenvectors in descending order if requested.
+    if sort:
+        sort_inds = jnp.argsort(evals)[::-1]
+        evals = evals[sort_inds]
+        evecs = evecs[:, sort_inds]
 
-    # (6) Conditionally transpose the eigenvector matrix.
-    evecs = lax.cond(
-        transpose,
-        lambda ev: ev.T,
-        lambda ev: ev,
-        evecs
-    )
+    # Optionally transpose the eigenvectors.
+    if transpose:
+        evecs = evecs.T
 
     return evals, evecs
-
-
-

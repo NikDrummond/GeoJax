@@ -295,6 +295,9 @@ def signed_angle(
     if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
         return result.item()  # Return scalar float
     return result  # Return 1D array otherwise
+import jax
+import jax.numpy as jnp
+from jax import jit, lax
 
 @jit
 def robust_covariance_mest(
