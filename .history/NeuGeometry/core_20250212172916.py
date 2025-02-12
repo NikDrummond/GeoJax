@@ -545,171 +545,85 @@ def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.nda
     else:
         return rotated_3d
 
-# @jit
-# def align_point_cloud(coords: jnp.ndarray,
-#                       order: jnp.ndarray,
-#                       target_basis: jnp.ndarray,
-#                       perspective_order: jnp.ndarray,
-#                       robust: bool,
-#                       center) -> jnp.ndarray:
-#     """
-#     Rotate the point cloud so that its eigenbasis (computed from its covariance matrix)
-#     is minimally rotated to align with a desired target basis.
-    
-#     In addition to previous functionality, this function accepts a new argument
-#     'perspective_order' (an (n×n) array) whose rows are used as the plane normals
-#     when computing minimal rotation angles via the minimum_theta function.
-    
-#     Inputs:
-#       - coords: an (N x n) array of points (n = 3 in our example).
-#       - order: an integer array of length n specifying the desired ordering of eigenvectors.
-#       - target_basis: an (n x n) array whose rows are the desired target unit vectors.
-#         (For example, for 3D, target_basis might be [[0,1,0],[1,0,0],[0,0,1]] to align
-#          the highest eigenvector with the y-axis, the second with the x-axis, and the third with z.)
-#       - perspective_order: an (n x n) array (same shape as target_basis) that specifies,
-#          for each axis, the plane normal to use when computing the minimal signed rotation
-#          (via minimum_theta). For example, perspective_order = [[0,0,1],[0,1,0],[1,0,0]] means
-#          first rotate about z, then y, then x.
-#       - robust: boolean indicating whether to use robust covariance estimation.
-#       - center: either a Boolean or an array.
-#          If False, do not center.
-#          If True, subtract the point cloud’s mean.
-#          If an array, subtract that array from every point.
-    
-#     The algorithm is as follows:
-#       1. Center the points (if requested).
-#       2. Compute the covariance and eigen decomposition (using robust methods if requested)
-#          to obtain an eigenbasis (returned as rows).
-#       3. Reorder the eigenvectors using 'order' and adjust their signs so that their dot–product
-#          with the corresponding target basis vector is nonnegative.
-#       4. Then, for each eigenvector (in the given order), compute the minimal rotation angle (using
-#          minimum_theta with the corresponding row of perspective_order as the plane normal) required
-#          to align it with the corresponding target basis vector.
-#       5. For each such minimal rotation, compute the corresponding rotation matrix (using our helper)
-#          and sequentially compose these rotations.
-#       6. Apply the overall rotation to the centered point cloud.
-    
-#     Returns:
-#       The rotated point cloud (same shape as coords).
-#     """
-#     # --- Center the point cloud ---
-#     # Use dynamic control flow: if center is a scalar, assume Boolean.
-#     centered = lax.cond(
-#         jnp.equal(jnp.ndim(center), 0),
-#         lambda _: lax.cond(center, lambda _: coords - jnp.mean(coords, axis=0), lambda _: coords, operand=None),
-#         lambda _: coords - center,
-#         operand=None
-#     )
-    
-#     # --- Compute covariance & eigen decomposition ---
-#     # We call coord_eig_decomp with center=False (since we already centered),
-#     # PCA=False (we only need the eigenvectors), sort=True, transpose=True so that eigenvectors
-#     # come as an (n x n) array (each row is one eigenvector).
-#     _, eigvecs = coord_eig_decomp(centered, robust, False, False, True, True)
-#     # Reorder eigenvectors using 'order'
-#     E = jnp.take(eigvecs, order, axis=0)
-#     # Sign–correct: flip each eigenvector if its dot with the corresponding target is negative.
-#     dots = jnp.sum(E * target_basis, axis=1, keepdims=True)
-#     E_adjusted = E * jnp.where(dots < 0, -1.0, 1.0)
-    
-#     # --- Compute the overall rotation using minimal rotations ---
-#     # We assume the point cloud is 3D (n = 3). Initialize R_total as the identity matrix.
-#     R_total = jnp.eye(3)
-#     # Number of axes (should be 3)
-#     n = target_basis.shape[0]
-#     for i in range(n):
-#         # Compute the current (rotated) eigenvector:
-#         # Since our overall rotation will be applied as: x_new = x @ R_total^T,
-#         # the rotated eigenvector is given by: E_adjusted[i] @ R_total^T.
-#         current_ev = jnp.matmul(E_adjusted[i:i+1], R_total.T)[0]
-#         # Compute minimal rotation angle to align current_ev with target_basis[i]
-#         # using perspective_order[i] as the plane normal.
-#         delta = minimum_theta(current_ev, target_basis[i], perspective_order[i], to_degree=False)
-#         # Build the rotation matrix for this minimal rotation.
-#         R_delta = rotation_matrix_from_rotvec(perspective_order[i] * delta)
-#         # Update the overall rotation: note that subsequent rotations are applied on the left.
-#         R_total = jnp.matmul(R_delta, R_total)
-    
-#     # --- Rotate the centered point cloud ---
-#     rotated = jnp.matmul(centered, R_total.T)
-#     return rotated
+from jax import jit
+import jax.numpy as jnp
 
+# Assume that the following functions are already defined and jitted in your module:
+# - coord_eig_decomp(coords, robust, center, PCA, sort, transpose)
+#   which returns (eigenvalues, eigenvectors) with eigenvectors as rows when transpose=True.
+#
+# For example, coord_eig_decomp might be imported from your module:
+# from your_module import coord_eig_decomp
 
-@jit
-def align_point_cloud(coords: jnp.ndarray,
-                      order: jnp.ndarray,
-                      target_basis: jnp.ndarray,
-                      perspective_order: jnp.ndarray,
-                      robust: bool,
-                      center) -> jnp.ndarray:
+@jit(align_point_cloud,static_argnames=("order", "robust", "center", "target_basis"))
+def align_point_cloud(coords: jnp.ndarray, order, target_basis, robust: bool, center) -> jnp.ndarray:
     """
-    Rotate the point cloud so that its eigenbasis (computed from its covariance)
-    is minimally rotated to align with a desired target basis.
-    
-    In addition to previous functionality, a new parameter 'perspective_order'
-    (an (n x n) array) is provided. Each row of perspective_order is used as the plane normal
-    when computing the minimal rotation (via minimum_theta) needed to align the corresponding
-    eigenvector with its target vector. This enforces a sequential rotation order (e.g. first about z,
-    then y, then x) so that the rotation is minimal and no mirroring is introduced.
-    
+    Rotate the point cloud so that its eigenvectors (computed from the covariance
+    matrix) align with a specified target basis.
+
     Parameters
     ----------
     coords : jnp.ndarray
-        An (N x n) array of points (n = 2 or 3).
-    order : jnp.ndarray
-        An integer array of length n specifying the desired ordering of eigenvectors.
+        An (N x n) array of coordinates (with n = 2 or 3).
+    order : array-like of int, length n
+        Specifies the ordering of eigenvectors. For example, [0,1,2] means that the eigenvector
+        corresponding to the highest eigenvalue is placed in slot 0, the second highest in slot 1, etc.
     target_basis : jnp.ndarray
-        An (n x n) array whose rows are the desired target unit vectors.
-    perspective_order : jnp.ndarray
-        An (n x n) array (same shape as target_basis) whose rows specify the plane normals to use
-        (i.e. the order in which rotations are applied).
+        An (n x n) array whose rows are the desired target unit vectors. After alignment,
+        the eigenvector in slot i will be as close as possible (via a minimal rotation) to target_basis[i].
     robust : bool
-        Whether to use robust covariance estimation.
+        If True, use robust covariance estimation (via robust_covariance_mest) in the eigen decomposition.
     center : bool or jnp.ndarray
-        If a Boolean, then True subtracts the point cloud’s mean (False does nothing).
-        If an array, subtract that array from every coordinate.
-    
+        If False, do nothing.
+        If True, subtract the center-of-mass (mean) of coords.
+        If an array, subtract that array from each coordinate.
+
     Returns
     -------
     jnp.ndarray
-        The rotated point cloud (same shape as coords).
+        The rotated coordinates (of the same shape as coords). The rotation is computed so that
+        the eigenbasis (reordered and sign–corrected) aligns with the target_basis.
     """
-    # --- Center the point cloud ---
-    # We check the Python type: if center is a bool, use that; otherwise assume it's an array.
+    # --- Center the coordinates ---
+    # If center is a boolean:
     if isinstance(center, bool):
-        centered = coords - (jnp.mean(coords, axis=0) if center else 0)
+        if center:
+            centered = coords - jnp.mean(coords, axis=0)
+        else:
+            centered = coords
     else:
+        # Otherwise, assume center is an array of shape (1,n) or (n,) and subtract it.
         centered = coords - center
 
-    # --- Compute covariance & eigen decomposition ---
-    # We call coord_eig_decomp with center=False (since we've already centered),
-    # PCA=False (we only need the eigenvectors), sort=True, transpose=True so that eigenvectors
-    # are returned as an (n x n) matrix (each row an eigenvector).
-    _, eigvecs = coord_eig_decomp(centered, robust, False, False, True, True)
+    # --- Compute eigen decomposition ---
+    # We set center=False here because we already centered (if needed).
+    # We also set PCA=False so that the eigenvalues are not normalized (not needed here).
+    # We request sort=True and transpose=True so that the eigenvectors come as an (n x n) matrix,
+    # with rows corresponding to eigenvectors in descending order.
+    _, eigvecs = coord_eig_decomp(centered, robust=robust, center=False, PCA=False, sort=True, transpose=True)
+    # eigvecs is an (n x n) matrix where each row is an eigenvector.
     
-    # Reorder eigenvectors using 'order'
-    E = jnp.take(eigvecs, order, axis=0)
-    # Sign–correct: for each eigenvector, flip its sign if its dot with the corresponding target is negative.
-    dots = jnp.sum(E * target_basis, axis=1, keepdims=True)
-    E_adjusted = E * jnp.where(dots < 0, -1.0, 1.0)
-    
-    # --- Compute the overall rotation via sequential minimal rotations ---
-    # We assume n = number of rows in target_basis.
-    n = target_basis.shape[0]
-    R_total = jnp.eye(3)
-    # For each axis (in order), compute the minimal rotation needed.
-    # Note: a Python for-loop is acceptable here since n is small.
-    for i in range(n):
-        # Compute the current orientation of the i-th eigenvector (after previous rotations).
-        current_ev = jnp.matmul(E_adjusted[i:i+1], R_total.T)[0]
-        # Compute the minimal rotation angle delta that rotates current_ev to target_basis[i],
-        # using perspective_order[i] as the plane normal.
-        delta = minimum_theta(current_ev, target_basis[i], perspective_order[i], to_degree=False)
-        # Compute the rotation for this axis.
-        R_delta = rotation_matrix_from_rotvec(perspective_order[i] * delta)
-        # Update the overall rotation: subsequent rotations are applied on the left.
-        R_total = jnp.matmul(R_delta, R_total)
-    
-    # --- Apply the overall rotation to the centered coordinates ---
-    rotated = jnp.matmul(centered, R_total.T)
+    # --- Reorder the eigenvectors ---
+    # Using the given ordering array, reorder the eigenvectors.
+    E_ordered = jnp.take(eigvecs, order, axis=0)
+
+    # --- Adjust signs to ensure minimal rotation ---
+    # For each row, if the dot product with the corresponding target vector is negative,
+    # flip that eigenvector.
+    dots = jnp.sum(E_ordered * target_basis, axis=1, keepdims=True)  # shape (n, 1)
+    sign_factor = jnp.where(dots < 0, -1.0, 1.0)
+    E_ordered_adjusted = E_ordered * sign_factor
+
+    # --- Compute the rotation matrix ---
+    # We want R such that R maps the eigenbasis to the target basis.
+    # If we view the eigenbasis as rows of an (n x n) matrix E_ordered_adjusted and the target basis as rows of T,
+    # then the minimal rotation is given by:
+    #      R = T^T @ E_ordered_adjusted
+    # When applying the rotation to row–vectors, we use R^T.
+    R = jnp.matmul(target_basis.T, E_ordered_adjusted)
+
+    # --- Rotate the centered coordinates ---
+    # Since our coordinates are stored as rows, the rotated coordinates are:
+    rotated = jnp.matmul(centered, R.T)
+
     return rotated
