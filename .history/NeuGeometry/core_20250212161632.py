@@ -494,7 +494,7 @@ def signed_angle(
 
 # --- Main function: minimal_line_signed_angle ---
 @jit
-def minimum_theta(
+def minimal_line_signed_angle(
     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
 ) -> jnp.ndarray:
     """

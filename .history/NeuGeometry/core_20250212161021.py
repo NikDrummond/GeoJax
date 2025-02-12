@@ -221,81 +221,80 @@ def angle(
     return angles  # Return a 1D array otherwise
 
 
-# @jit
-# def signed_angle(
-#     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
-# ) -> jnp.ndarray | float:
-#     """
-#     Compute the signed angle between two vectors relative to a specified plane.
+@jit
+def signed_angle(
+    v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
+) -> jnp.ndarray | float:
+    """
+    Compute the signed angle between two vectors relative to a specified plane.
 
-#     Parameters
-#     ----------
-#     v1 : jnp.ndarray
-#         First vector or batch of vectors.
-#     v2 : jnp.ndarray
-#         Second vector or batch of vectors.
-#     plane_normal : jnp.ndarray
-#         Normal vector (or batch of normals) defining the reference plane.
-#     to_degree : bool, optional
-#         If True, returns the angle in degrees; otherwise in radians, by default False.
+    Parameters
+    ----------
+    v1 : jnp.ndarray
+        First vector or batch of vectors.
+    v2 : jnp.ndarray
+        Second vector or batch of vectors.
+    plane_normal : jnp.ndarray
+        Normal vector (or batch of normals) defining the reference plane.
+    to_degree : bool, optional
+        If True, returns the angle in degrees; otherwise in radians, by default False.
 
-#     Returns
-#     -------
-#     jnp.ndarray | float
-#         The signed angle between v1 and v2. Returns a scalar for single vectors or an array for multiple vectors.
-#     """
+    Returns
+    -------
+    jnp.ndarray | float
+        The signed angle between v1 and v2. Returns a scalar for single vectors or an array for multiple vectors.
+    """
 
-#     # Record original dimensionality
-#     orig_v1_is_1d = v1.ndim == 1
-#     orig_v2_is_1d = v2.ndim == 1
-#     orig_normal_is_1d = plane_normal.ndim == 1
+    # Record original dimensionality
+    orig_v1_is_1d = v1.ndim == 1
+    orig_v2_is_1d = v2.ndim == 1
+    orig_normal_is_1d = plane_normal.ndim == 1
 
-#     # Convert all inputs to at least 2D
-#     v1 = jnp.atleast_2d(v1)
-#     v2 = jnp.atleast_2d(v2)
-#     plane_normal = jnp.atleast_2d(plane_normal)
+    # Convert all inputs to at least 2D
+    v1 = jnp.atleast_2d(v1)
+    v2 = jnp.atleast_2d(v2)
+    plane_normal = jnp.atleast_2d(plane_normal)
 
-#     # Ensure broadcastability along the first axis
-#     if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
-#         v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
-#     ):
-#         raise ValueError(
-#             "v1, v2, and plane_normal must be broadcastable along the first axis."
-#         )
+    # Ensure broadcastability along the first axis
+    if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
+        v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
+    ):
+        raise ValueError(
+            "v1, v2, and plane_normal must be broadcastable along the first axis."
+        )
 
-#     # Broadcast each input to match the maximum batch size
-#     if v1.shape[0] == 1:
-#         v1 = jnp.broadcast_to(
-#             v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
-#         )
-#     if v2.shape[0] == 1:
-#         v2 = jnp.broadcast_to(
-#             v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
-#         )
-#     if plane_normal.shape[0] == 1:
-#         plane_normal = jnp.broadcast_to(
-#             plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
-#         )
+    # Broadcast each input to match the maximum batch size
+    if v1.shape[0] == 1:
+        v1 = jnp.broadcast_to(
+            v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
+        )
+    if v2.shape[0] == 1:
+        v2 = jnp.broadcast_to(
+            v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
+        )
+    if plane_normal.shape[0] == 1:
+        plane_normal = jnp.broadcast_to(
+            plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
+        )
 
-#     # Compute the cross product between v1 and v2
-#     cross_prod = jnp.cross(v1, v2)
+    # Compute the cross product between v1 and v2
+    cross_prod = jnp.cross(v1, v2)
 
-#     # Compute the signed component using dot product with the plane normal
-#     dot_val = jnp.sum(cross_prod * plane_normal, axis=-1)
-#     sign = jnp.sign(dot_val)
+    # Compute the signed component using dot product with the plane normal
+    dot_val = jnp.sum(cross_prod * plane_normal, axis=-1)
+    sign = jnp.sign(dot_val)
 
-#     # Replace zeros (collinear case) with +1
-#     sign = jnp.where(sign == 0, 1, sign)
+    # Replace zeros (collinear case) with +1
+    sign = jnp.where(sign == 0, 1, sign)
 
-#     # Compute the unsigned angle
-#     unsigned_angle = angle(v1, v2, plane_normal=plane_normal, to_degree=to_degree)
-#     result = sign * unsigned_angle
+    # Compute the unsigned angle
+    unsigned_angle = angle(v1, v2, plane_normal=plane_normal, to_degree=to_degree)
+    result = sign * unsigned_angle
 
-#     # Ensure correct return type
-#     if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
-#         return result.item()  # Return scalar float
-#     return result  # Return 1D array otherwise
-
+    # Ensure correct return type
+    if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
+        return result.item()  # Return scalar float
+    return result  # Return 1D array otherwise
 
 @jit
 def robust_covariance_mest(
@@ -303,7 +302,7 @@ def robust_covariance_mest(
 ) -> jnp.ndarray:
     """
     Compute a robust covariance matrix using an M‐estimator with a Huber‐like weighting scheme.
-
+    
     Parameters
     ----------
     X : jnp.ndarray
@@ -314,7 +313,7 @@ def robust_covariance_mest(
         Convergence tolerance (default: 1e-6).
     max_iter : int, optional
         Maximum number of iterations (default: 100).
-
+    
     Returns
     -------
     jnp.ndarray
@@ -346,16 +345,13 @@ def robust_covariance_mest(
         new_mu = jnp.sum(weights[:, None] * X, axis=0) / jnp.sum(weights)
         weighted_diff = X - new_mu
         # Update the weighted covariance.
-        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(
-            weights
-        )
+        new_sigma = (weighted_diff.T @ (weights[:, None] * weighted_diff)) / jnp.sum(weights)
         # Check convergence (using the change in the mean).
         converged = jnp.linalg.norm(new_mu - mu) < tol
         return (new_mu, new_sigma, i + 1, converged)
 
     mu_final, sigma_final, _, _ = lax.while_loop(cond_fn, body_fn, state0)
     return sigma_final
-
 
 @jit
 def coord_eig_decomp(
@@ -369,7 +365,7 @@ def coord_eig_decomp(
     """
     Compute the eigendecomposition of the covariance matrix for a set of coordinates,
     with options for robust covariance estimation and PCA normalization.
-
+    
     Parameters
     ----------
     coords : jnp.ndarray
@@ -384,7 +380,7 @@ def coord_eig_decomp(
         If True, sort eigenvalues and eigenvectors in descending order (default: True).
     transpose : bool, optional
         If True, return eigenvectors as rows rather than columns (default: True).
-
+    
     Returns
     -------
     tuple[jnp.ndarray, jnp.ndarray]
@@ -393,136 +389,105 @@ def coord_eig_decomp(
           - eigenvectors (as a 2D array, transposed if requested)
     """
     # (1) Conditionally center the coordinates.
-    coords = lax.cond(center, lambda c: c - jnp.mean(c, axis=0), lambda c: c, coords)
+    coords = lax.cond(
+        center,
+        lambda c: c - jnp.mean(c, axis=0),
+        lambda c: c,
+        coords
+    )
 
     # (2) Compute the covariance matrix using robust estimation or the standard method.
     cov = lax.cond(
         robust,
         lambda c: robust_covariance_mest(c),
         lambda c: jnp.cov(c, rowvar=False, bias=True),
-        coords,
+        coords
     )
 
     # (3) Compute the eigendecomposition (using eigh for symmetric matrices).
     evals, evecs = jnp.linalg.eigh(cov)
 
     # (4) Conditionally normalize eigenvalues so that they sum to 1 (PCA mode).
-    evals = lax.cond(PCA, lambda e: e / jnp.sum(e), lambda e: e, evals)
+    evals = lax.cond(
+        PCA,
+        lambda e: e / jnp.sum(e),
+        lambda e: e,
+        evals
+    )
 
     # (5) Conditionally sort eigenvalues (and corresponding eigenvectors) in descending order.
     def sort_fn(args):
         ev, evec = args
         sort_inds = jnp.argsort(ev)[::-1]
         return (ev[sort_inds], evec[:, sort_inds])
-
-    evals, evecs = lax.cond(sort, sort_fn, lambda args: args, (evals, evecs))
+    evals, evecs = lax.cond(
+        sort,
+        sort_fn,
+        lambda args: args,
+        (evals, evecs)
+    )
 
     # (6) Conditionally transpose the eigenvector matrix.
-    evecs = lax.cond(transpose, lambda ev: ev.T, lambda ev: ev, evecs)
+    evecs = lax.cond(
+        transpose,
+        lambda ev: ev.T,
+        lambda ev: ev,
+        evecs
+    )
 
     return evals, evecs
 
-# --- Helper function: signed_angle ---
+from jax import jit, lax
+import jax.numpy as jnp
+
 @jit
-def signed_angle(
-    v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
+def minimal_line_signed_angle(
+    v1: jnp.ndarray,
+    v2: jnp.ndarray,
+    plane_normal: jnp.ndarray,
+    to_degree: bool = False
 ) -> jnp.ndarray:
     """
-    Compute the signed angle between two vectors (or batches) measured on the plane defined
-    by plane_normal. (If plane_normal is provided, both v1 and v2 are projected onto the plane via rejection.)
-
-    Returns a JAX array scalar if all inputs are 1D, or an array if any input is batched.
-
-    Parameters:
-      v1, v2: 1D or 2D arrays.
-      plane_normal: 1D or 2D array.
-      to_degree: if True, convert the result to degrees.
-
-    Returns:
-      The signed angle between v1 and v2.
+    Compute the minimal signed angle between v1 and the full (undirected) line defined by v2,
+    measured on the plane whose normal is given by plane_normal.
+    
+    This function first computes the signed angle between v1 and v2 (projected onto the plane).
+    Because v2 represents a line (its direction is undirected), we can also use -v2.
+    Therefore, if the absolute value of the computed signed angle is greater than π/2,
+    we adjust it by subtracting sign(angle)*π so that the returned angle lies in [-π/2, π/2].
+    
+    Parameters
+    ----------
+    v1 : jnp.ndarray
+        A 1D array representing the first vector.
+    v2 : jnp.ndarray
+        A 1D array representing the second vector (defining an undirected line).
+    plane_normal : jnp.ndarray
+        A 1D array representing the normal of the plane to which the vectors are projected.
+    to_degree : bool, optional
+        If True, return the angle in degrees; otherwise in radians (default is False).
+    
+    Returns
+    -------
+    jnp.ndarray
+        The minimal signed angle between v1 and the line spanned by v2,
+        expressed in radians (or degrees if `to_degree` is True).
     """
-    # Record original dimensionality.
-    orig_v1_is_1d = v1.ndim == 1
-    orig_v2_is_1d = v2.ndim == 1
-    orig_normal_is_1d = plane_normal.ndim == 1
-
-    # If a plane normal is provided, project v1 and v2 by rejection.
-    if plane_normal is not None:
-        # (Assume reject() is defined elsewhere.)
-        v1 = reject(v1, plane_normal)
-        v2 = reject(v2, plane_normal)
-
-    # Ensure both inputs are at least 2D.
-    v1 = jnp.atleast_2d(v1)
-    v2 = jnp.atleast_2d(v2)
-
-    # Handle broadcasting if one input is a single vector.
-    if (v1.shape[0] != v2.shape[0]) and (v1.shape[0] != 1) and (v2.shape[0] != 1):
-        raise ValueError(
-            "v1 and v2 must have the same number of rows or be broadcastable."
-        )
-    if v1.shape[0] == 1:
-        v1 = jnp.broadcast_to(v1, v2.shape)
-    if v2.shape[0] == 1:
-        v2 = jnp.broadcast_to(v2, v1.shape)
-
-    # Compute dot products and magnitudes.
-    dot_products = jnp.sum(v1 * v2, axis=-1)
-    mags = magnitude(v1) * magnitude(v2)
-    # Compute cosine values (adding a tiny constant to avoid division by zero).
-    cosines = dot_products / (mags + 1e-10)
-    # Clamp to safe numerical range and compute the unsigned angle.
-    angle_rad = jnp.arccos(jnp.clip(cosines, -1.0, 1.0))
-
-    # Determine the sign via cross products with the plane normal.
-    cross_prod = jnp.cross(v1, v2)
-    sign = jnp.sign(jnp.sum(cross_prod * jnp.atleast_2d(plane_normal), axis=-1))
-    # Replace zero sign (collinear case) with +1.
-    sign = jnp.where(sign == 0, 1, sign)
-    signed_angle_rad = sign * angle_rad
-
-    # Optionally convert to degrees.
-    out_angle = lax.cond(
-        to_degree, lambda a: jnp.degrees(a), lambda a: a, signed_angle_rad
+    # Compute the signed angle (in radians) between v1 and v2 on the projected plane.
+    # (The provided signed_angle function already handles projection via rejection.)
+    a = signed_angle(v1, v2, plane_normal, to_degree=False)
+    
+    # Adjust the angle: if |a| > π/2, then the alternative (flipped) angle is smaller.
+    # This yields an angle in the range [-π/2, π/2].
+    a_min = jnp.where(jnp.abs(a) > jnp.pi/2, a - jnp.sign(a) * jnp.pi, a)
+    
+    # If the user requested degrees, convert the result using lax.cond for JIT-compatibility.
+    result = lax.cond(
+        to_degree,
+        lambda x: jnp.degrees(x),
+        lambda x: x,
+        a_min
     )
-
-    # If all inputs were originally 1D, return a scalar (as a JAX array scalar).
-    if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
-        return out_angle[0]
-    return out_angle
+    return result
 
 
-# --- Main function: minimal_line_signed_angle ---
-@jit
-def minimum_theta(
-    v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
-) -> jnp.ndarray:
-    """
-    Compute the minimal signed angle between v1 and the undirected line spanned by v2,
-    measured on the projection onto the plane defined by plane_normal.
-
-    Because the line defined by v2 is undirected, we consider both v2 and -v2.
-    If the absolute signed angle between v1 and v2 exceeds π/2, the alternative (flipped) angle
-    is used, ensuring the result lies in [-π/2, π/2].
-
-    Parameters:
-      v1: 1D array representing the first vector.
-      v2: 1D array representing the second vector (defines a line, direction is undirected).
-      plane_normal: 1D array representing the normal of the plane.
-      to_degree: if True, return the angle in degrees; otherwise, in radians.
-
-    Returns:
-      A JAX array scalar (or batch) with the minimal signed angle.
-    """
-    # Compute the signed angle (in radians) between v1 and v2 (after projection).
-    angle_rad = signed_angle(v1, v2, plane_normal, to_degree=False)
-
-    # Adjust: if the absolute angle exceeds π/2, flip by subtracting sign(angle)*π.
-    minimal_angle_rad = jnp.where(
-        jnp.abs(angle_rad) > (jnp.pi / 2),
-        angle_rad - jnp.sign(angle_rad) * jnp.pi,
-        angle_rad,
-    )
-
-    # Optionally convert to degrees using lax.cond for JIT–compatibility.
-    return lax.cond(to_degree, lambda a: jnp.degrees(a), lambda a: a, minimal_angle_rad)

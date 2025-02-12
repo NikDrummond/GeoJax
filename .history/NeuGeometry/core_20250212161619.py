@@ -221,80 +221,80 @@ def angle(
     return angles  # Return a 1D array otherwise
 
 
-# @jit
-# def signed_angle(
-#     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
-# ) -> jnp.ndarray | float:
-#     """
-#     Compute the signed angle between two vectors relative to a specified plane.
+@jit
+def signed_angle(
+    v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
+) -> jnp.ndarray | float:
+    """
+    Compute the signed angle between two vectors relative to a specified plane.
 
-#     Parameters
-#     ----------
-#     v1 : jnp.ndarray
-#         First vector or batch of vectors.
-#     v2 : jnp.ndarray
-#         Second vector or batch of vectors.
-#     plane_normal : jnp.ndarray
-#         Normal vector (or batch of normals) defining the reference plane.
-#     to_degree : bool, optional
-#         If True, returns the angle in degrees; otherwise in radians, by default False.
+    Parameters
+    ----------
+    v1 : jnp.ndarray
+        First vector or batch of vectors.
+    v2 : jnp.ndarray
+        Second vector or batch of vectors.
+    plane_normal : jnp.ndarray
+        Normal vector (or batch of normals) defining the reference plane.
+    to_degree : bool, optional
+        If True, returns the angle in degrees; otherwise in radians, by default False.
 
-#     Returns
-#     -------
-#     jnp.ndarray | float
-#         The signed angle between v1 and v2. Returns a scalar for single vectors or an array for multiple vectors.
-#     """
+    Returns
+    -------
+    jnp.ndarray | float
+        The signed angle between v1 and v2. Returns a scalar for single vectors or an array for multiple vectors.
+    """
 
-#     # Record original dimensionality
-#     orig_v1_is_1d = v1.ndim == 1
-#     orig_v2_is_1d = v2.ndim == 1
-#     orig_normal_is_1d = plane_normal.ndim == 1
+    # Record original dimensionality
+    orig_v1_is_1d = v1.ndim == 1
+    orig_v2_is_1d = v2.ndim == 1
+    orig_normal_is_1d = plane_normal.ndim == 1
 
-#     # Convert all inputs to at least 2D
-#     v1 = jnp.atleast_2d(v1)
-#     v2 = jnp.atleast_2d(v2)
-#     plane_normal = jnp.atleast_2d(plane_normal)
+    # Convert all inputs to at least 2D
+    v1 = jnp.atleast_2d(v1)
+    v2 = jnp.atleast_2d(v2)
+    plane_normal = jnp.atleast_2d(plane_normal)
 
-#     # Ensure broadcastability along the first axis
-#     if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
-#         v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
-#     ):
-#         raise ValueError(
-#             "v1, v2, and plane_normal must be broadcastable along the first axis."
-#         )
+    # Ensure broadcastability along the first axis
+    if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
+        v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
+    ):
+        raise ValueError(
+            "v1, v2, and plane_normal must be broadcastable along the first axis."
+        )
 
-#     # Broadcast each input to match the maximum batch size
-#     if v1.shape[0] == 1:
-#         v1 = jnp.broadcast_to(
-#             v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
-#         )
-#     if v2.shape[0] == 1:
-#         v2 = jnp.broadcast_to(
-#             v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
-#         )
-#     if plane_normal.shape[0] == 1:
-#         plane_normal = jnp.broadcast_to(
-#             plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
-#         )
+    # Broadcast each input to match the maximum batch size
+    if v1.shape[0] == 1:
+        v1 = jnp.broadcast_to(
+            v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
+        )
+    if v2.shape[0] == 1:
+        v2 = jnp.broadcast_to(
+            v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
+        )
+    if plane_normal.shape[0] == 1:
+        plane_normal = jnp.broadcast_to(
+            plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
+        )
 
-#     # Compute the cross product between v1 and v2
-#     cross_prod = jnp.cross(v1, v2)
+    # Compute the cross product between v1 and v2
+    cross_prod = jnp.cross(v1, v2)
 
-#     # Compute the signed component using dot product with the plane normal
-#     dot_val = jnp.sum(cross_prod * plane_normal, axis=-1)
-#     sign = jnp.sign(dot_val)
+    # Compute the signed component using dot product with the plane normal
+    dot_val = jnp.sum(cross_prod * plane_normal, axis=-1)
+    sign = jnp.sign(dot_val)
 
-#     # Replace zeros (collinear case) with +1
-#     sign = jnp.where(sign == 0, 1, sign)
+    # Replace zeros (collinear case) with +1
+    sign = jnp.where(sign == 0, 1, sign)
 
-#     # Compute the unsigned angle
-#     unsigned_angle = angle(v1, v2, plane_normal=plane_normal, to_degree=to_degree)
-#     result = sign * unsigned_angle
+    # Compute the unsigned angle
+    unsigned_angle = angle(v1, v2, plane_normal=plane_normal, to_degree=to_degree)
+    result = sign * unsigned_angle
 
-#     # Ensure correct return type
-#     if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
-#         return result.item()  # Return scalar float
-#     return result  # Return 1D array otherwise
+    # Ensure correct return type
+    if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
+        return result.item()  # Return scalar float
+    return result  # Return 1D array otherwise
 
 
 @jit
@@ -494,7 +494,7 @@ def signed_angle(
 
 # --- Main function: minimal_line_signed_angle ---
 @jit
-def minimum_theta(
+def minimal_line_signed_angle(
     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
 ) -> jnp.ndarray:
     """
