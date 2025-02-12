@@ -221,6 +221,82 @@ def angle(
     return angles  # Return a 1D array otherwise
 
 
+# @jit
+# def signed_angle(
+#     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
+# ) -> jnp.ndarray | float:
+#     """
+#     Compute the signed angle between two vectors relative to a specified plane.
+
+#     Parameters
+#     ----------
+#     v1 : jnp.ndarray
+#         First vector or batch of vectors.
+#     v2 : jnp.ndarray
+#         Second vector or batch of vectors.
+#     plane_normal : jnp.ndarray
+#         Normal vector (or batch of normals) defining the reference plane.
+#     to_degree : bool, optional
+#         If True, returns the angle in degrees; otherwise in radians, by default False.
+
+#     Returns
+#     -------
+#     jnp.ndarray | float
+#         The signed angle between v1 and v2. Returns a scalar for single vectors or an array for multiple vectors.
+#     """
+
+#     # Record original dimensionality
+#     orig_v1_is_1d = v1.ndim == 1
+#     orig_v2_is_1d = v2.ndim == 1
+#     orig_normal_is_1d = plane_normal.ndim == 1
+
+#     # Convert all inputs to at least 2D
+#     v1 = jnp.atleast_2d(v1)
+#     v2 = jnp.atleast_2d(v2)
+#     plane_normal = jnp.atleast_2d(plane_normal)
+
+#     # Ensure broadcastability along the first axis
+#     if (v1.shape[0] != v2.shape[0] or v1.shape[0] != plane_normal.shape[0]) and (
+#         v1.shape[0] != 1 and v2.shape[0] != 1 and plane_normal.shape[0] != 1
+#     ):
+#         raise ValueError(
+#             "v1, v2, and plane_normal must be broadcastable along the first axis."
+#         )
+
+#     # Broadcast each input to match the maximum batch size
+#     if v1.shape[0] == 1:
+#         v1 = jnp.broadcast_to(
+#             v1, (max(v2.shape[0], plane_normal.shape[0]), v1.shape[1])
+#         )
+#     if v2.shape[0] == 1:
+#         v2 = jnp.broadcast_to(
+#             v2, (max(v1.shape[0], plane_normal.shape[0]), v2.shape[1])
+#         )
+#     if plane_normal.shape[0] == 1:
+#         plane_normal = jnp.broadcast_to(
+#             plane_normal, (max(v1.shape[0], v2.shape[0]), plane_normal.shape[1])
+#         )
+
+#     # Compute the cross product between v1 and v2
+#     cross_prod = jnp.cross(v1, v2)
+
+#     # Compute the signed component using dot product with the plane normal
+#     dot_val = jnp.sum(cross_prod * plane_normal, axis=-1)
+#     sign = jnp.sign(dot_val)
+
+#     # Replace zeros (collinear case) with +1
+#     sign = jnp.where(sign == 0, 1, sign)
+
+#     # Compute the unsigned angle
+#     unsigned_angle = angle(v1, v2, plane_normal=plane_normal, to_degree=to_degree)
+#     result = sign * unsigned_angle
+
+#     # Ensure correct return type
+#     if orig_v1_is_1d and orig_v2_is_1d and orig_normal_is_1d:
+#         return result.item()  # Return scalar float
+#     return result  # Return 1D array otherwise
+
+
 @jit
 def robust_covariance_mest(
     X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100
@@ -346,7 +422,6 @@ def coord_eig_decomp(
 
     return evals, evecs
 
-
 # --- Helper function: signed_angle ---
 @jit
 def signed_angle(
@@ -416,7 +491,6 @@ def signed_angle(
         return out_angle[0]
     return out_angle
 
-
 @jit
 def minimum_theta(
     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
@@ -451,100 +525,3 @@ def minimum_theta(
     # Optionally convert to degrees using lax.cond for JIT–compatibility.
     return lax.cond(to_degree, lambda a: jnp.degrees(a), lambda a: a, minimal_angle_rad)
 
-
-@jit
-def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:
-    """
-    Compute a 3x3 rotation matrix from a rotation vector (axis * theta)
-    using Rodrigues’ rotation formula.
-    
-    Parameters
-    ----------
-    rot_vec : jnp.ndarray
-        A 1D array of shape (3,). The rotation vector; its norm is the angle.
-    
-    Returns
-    -------
-    jnp.ndarray
-        A 3x3 rotation matrix.
-    """
-    # Compute the rotation angle.
-    angle = jnp.linalg.norm(rot_vec)
-    
-    # When the angle is nearly zero, return the identity matrix.
-    def nonzero(_):
-        u = rot_vec / angle
-        cos_a = jnp.cos(angle)
-        sin_a = jnp.sin(angle)
-        one_minus_cos = 1 - cos_a
-        # Build the skew-symmetric matrix of u.
-        u_cross = jnp.array([
-            [    0, -u[2],  u[1]],
-            [ u[2],     0, -u[0]],
-            [-u[1],  u[0],     0]
-        ])
-        u_outer = jnp.outer(u, u)
-        R = cos_a * jnp.eye(3) + one_minus_cos * u_outer + sin_a * u_cross
-        return R
-
-    def zero(_):
-        return jnp.eye(3)
-
-    # Use lax.cond to select the branch in a JIT–compatible way.
-    return lax.cond(angle > 1e-8, nonzero, zero, operand=None)
-
-
-@jit
-def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.ndarray:
-    """
-    Rotate a set of coordinates by a signed angle around a given axis.
-    
-    This function replicates the behavior of:
-    
-        def rotate_around_axis(coords, theta, axis):
-            rot_vec = axis * theta
-            rot = R.from_rotvec(rot_vec)
-            coords = rot.apply(coords)
-            return coords
-
-    Parameters
-    ----------
-    coords : jnp.ndarray
-        An array of coordinates of shape (N, 2) or (N, 3).
-        For 2D input (x, y), the rotation is performed about the provided 3D axis
-        by temporarily lifting the points to 3D.
-    theta : float or scalar-like
-        The rotation angle (in radians). The sign indicates rotation direction.
-    axis : jnp.ndarray
-        A 1D array of shape (3,) specifying the rotation axis.
-    
-    Returns
-    -------
-    jnp.ndarray
-        The rotated coordinates in the same shape as the input.
-        (For 2D input, returns an array of shape (N, 2).)
-    """
-    # Compute the rotation vector.
-    rot_vec = axis * theta
-    # Compute the rotation matrix from the rotation vector.
-    R = rotation_matrix_from_rotvec(rot_vec)
-    
-    # Determine if the input is 2D or 3D.
-    orig_dim = coords.shape[1]
-    # We use a Python conditional here because the coordinate dimension is static.
-    if orig_dim == 2:
-        # Lift 2D points to 3D by appending a zero z-coordinate.
-        coords_3d = jnp.concatenate([coords, jnp.zeros((coords.shape[0], 1))], axis=1)
-    elif orig_dim == 3:
-        coords_3d = coords
-    else:
-        raise ValueError("Coordinates must have 2 or 3 columns.")
-    
-    # Rotate the (3D) coordinates. (We multiply by R^T since points are row vectors.)
-    rotated_3d = jnp.dot(coords_3d, R.T)
-    
-    # If the input was 2D, discard the third coordinate.
-    if orig_dim == 2:
-        return rotated_3d[:, :2]
-    else:
-        return rotated_3d

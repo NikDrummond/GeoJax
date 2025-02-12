@@ -451,6 +451,9 @@ def minimum_theta(
     # Optionally convert to degrees using lax.cond for JIT–compatibility.
     return lax.cond(to_degree, lambda a: jnp.degrees(a), lambda a: a, minimal_angle_rad)
 
+import jax
+import jax.numpy as jnp
+from jax import jit, lax
 
 @jit
 def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:
@@ -548,3 +551,30 @@ def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.nda
         return rotated_3d[:, :2]
     else:
         return rotated_3d
+
+
+# =============================================================================
+# Example usage:
+if __name__ == "__main__":
+    import jax.random as jr
+
+    # Example 1: 2D coordinates.
+    coords_2d = jnp.array([[1.0, 0.0],
+                           [0.0, 1.0],
+                           [-1.0, 0.0],
+                           [0.0, -1.0]])
+    # Rotate these points 45° (π/4 radians) about the z-axis.
+    axis = jnp.array([0.0, 0.0, 1.0])
+    rotated_2d = rotate_around_axis(coords_2d, theta=jnp.pi/4, axis=axis)
+    print("Original 2D points:\n", coords_2d)
+    print("Rotated 2D points:\n", rotated_2d)
+
+    # Example 2: 3D coordinates.
+    coords_3d = jnp.array([[1.0, 0.0, 0.0],
+                           [0.0, 1.0, 0.0],
+                           [0.0, 0.0, 1.0]])
+    # Rotate these points 60° (π/3 radians) about the axis [1, 1, 1].
+    axis_3d = jnp.array([1.0, 1.0, 1.0])
+    rotated_3d = rotate_around_axis(coords_3d, theta=jnp.pi/3, axis=axis_3d)
+    print("Original 3D points:\n", coords_3d)
+    print("Rotated 3D points:\n", rotated_3d)

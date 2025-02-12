@@ -451,6 +451,9 @@ def minimum_theta(
     # Optionally convert to degrees using lax.cond for JIT–compatibility.
     return lax.cond(to_degree, lambda a: jnp.degrees(a), lambda a: a, minimal_angle_rad)
 
+import jax
+import jax.numpy as jnp
+from jax import jit, lax
 
 @jit
 def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:

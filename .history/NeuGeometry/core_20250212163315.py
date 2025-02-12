@@ -220,7 +220,6 @@ def angle(
         return angles.item()  # Return a float for single vectors
     return angles  # Return a 1D array otherwise
 
-
 @jit
 def robust_covariance_mest(
     X: jnp.ndarray, c: float = 1.5, tol: float = 1e-6, max_iter: int = 100
@@ -346,7 +345,6 @@ def coord_eig_decomp(
 
     return evals, evecs
 
-
 # --- Helper function: signed_angle ---
 @jit
 def signed_angle(
@@ -416,7 +414,6 @@ def signed_angle(
         return out_angle[0]
     return out_angle
 
-
 @jit
 def minimum_theta(
     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
@@ -451,100 +448,115 @@ def minimum_theta(
     # Optionally convert to degrees using lax.cond for JIT–compatibility.
     return lax.cond(to_degree, lambda a: jnp.degrees(a), lambda a: a, minimal_angle_rad)
 
+import jax
+import jax.numpy as jnp
+from jax import jit, lax
 
 @jit
-def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:
+def rotation_matrix(axis: jnp.ndarray, theta: float) -> jnp.ndarray:
     """
-    Compute a 3x3 rotation matrix from a rotation vector (axis * theta)
-    using Rodrigues’ rotation formula.
+    Compute a 3x3 rotation matrix using Rodrigues’ rotation formula.
     
     Parameters
     ----------
-    rot_vec : jnp.ndarray
-        A 1D array of shape (3,). The rotation vector; its norm is the angle.
+    axis : jnp.ndarray
+        A 1D array of shape (3,) specifying the axis of rotation (need not be normalized).
+    theta : float
+        The signed angle of rotation in radians.
     
     Returns
     -------
     jnp.ndarray
         A 3x3 rotation matrix.
     """
-    # Compute the rotation angle.
-    angle = jnp.linalg.norm(rot_vec)
+    # Normalize the axis.
+    u = axis / jnp.linalg.norm(axis)
+    cos_t = jnp.cos(theta)
+    sin_t = jnp.sin(theta)
+    one_minus_cos = 1 - cos_t
     
-    # When the angle is nearly zero, return the identity matrix.
-    def nonzero(_):
-        u = rot_vec / angle
-        cos_a = jnp.cos(angle)
-        sin_a = jnp.sin(angle)
-        one_minus_cos = 1 - cos_a
-        # Build the skew-symmetric matrix of u.
-        u_cross = jnp.array([
-            [    0, -u[2],  u[1]],
-            [ u[2],     0, -u[0]],
-            [-u[1],  u[0],     0]
-        ])
-        u_outer = jnp.outer(u, u)
-        R = cos_a * jnp.eye(3) + one_minus_cos * u_outer + sin_a * u_cross
-        return R
-
-    def zero(_):
-        return jnp.eye(3)
-
-    # Use lax.cond to select the branch in a JIT–compatible way.
-    return lax.cond(angle > 1e-8, nonzero, zero, operand=None)
-
+    # Outer product u*u^T.
+    u_outer = jnp.outer(u, u)
+    # Skew-symmetric matrix for cross product.
+    u_cross = jnp.array([[    0, -u[2],  u[1]],
+                         [ u[2],     0, -u[0]],
+                         [-u[1],  u[0],     0]])
+    
+    # Rodrigues’ formula.
+    R = cos_t * jnp.eye(3) + one_minus_cos * u_outer + sin_t * u_cross
+    return R
 
 @jit
-def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.ndarray:
+def rotate_coords(coords: jnp.ndarray, theta: float, axis: jnp.ndarray) -> jnp.ndarray:
     """
-    Rotate a set of coordinates by a signed angle around a given axis.
+    Rotate a set of coordinates about a specified axis by a given signed angle.
     
-    This function replicates the behavior of:
-    
-        def rotate_around_axis(coords, theta, axis):
-            rot_vec = axis * theta
-            rot = R.from_rotvec(rot_vec)
-            coords = rot.apply(coords)
-            return coords
-
     Parameters
     ----------
     coords : jnp.ndarray
-        An array of coordinates of shape (N, 2) or (N, 3).
-        For 2D input (x, y), the rotation is performed about the provided 3D axis
-        by temporarily lifting the points to 3D.
-    theta : float or scalar-like
-        The rotation angle (in radians). The sign indicates rotation direction.
+        An array of shape (N, 2) or (N, 3). For 2D data, points are in (x, y).
+    theta : float
+        The signed angle (in radians) by which to rotate.
     axis : jnp.ndarray
-        A 1D array of shape (3,) specifying the rotation axis.
+        A 1D array of shape (3,) specifying the axis of rotation.
     
     Returns
     -------
     jnp.ndarray
-        The rotated coordinates in the same shape as the input.
-        (For 2D input, returns an array of shape (N, 2).)
+        The rotated coordinates in the same shape as the input.  
+        (For 2D input, the output is (N, 2); for 3D input, (N, 3).)
     """
-    # Compute the rotation vector.
-    rot_vec = axis * theta
-    # Compute the rotation matrix from the rotation vector.
-    R = rotation_matrix_from_rotvec(rot_vec)
-    
-    # Determine if the input is 2D or 3D.
+    # Get the original coordinate dimension (2 or 3)
     orig_dim = coords.shape[1]
-    # We use a Python conditional here because the coordinate dimension is static.
-    if orig_dim == 2:
-        # Lift 2D points to 3D by appending a zero z-coordinate.
-        coords_3d = jnp.concatenate([coords, jnp.zeros((coords.shape[0], 1))], axis=1)
-    elif orig_dim == 3:
-        coords_3d = coords
-    else:
-        raise ValueError("Coordinates must have 2 or 3 columns.")
     
-    # Rotate the (3D) coordinates. (We multiply by R^T since points are row vectors.)
-    rotated_3d = jnp.dot(coords_3d, R.T)
+    # If coordinates are 2D, lift them to 3D by adding a zero z-component.
+    coords_3d = lax.cond(
+        orig_dim == 2,
+        lambda c: jnp.concatenate([c, jnp.zeros((c.shape[0], 1))], axis=1),
+        lambda c: c,
+        coords
+    )
     
-    # If the input was 2D, discard the third coordinate.
-    if orig_dim == 2:
-        return rotated_3d[:, :2]
-    else:
-        return rotated_3d
+    # Compute the 3x3 rotation matrix.
+    R = rotation_matrix(axis, theta)
+    
+    # Rotate the (3D) coordinates.
+    rotated_3d = jnp.dot(coords_3d, R.T)  # Use R.T since rows are our vectors.
+    
+    # If the original coordinates were 2D, drop the third coordinate.
+    rotated = lax.cond(
+        orig_dim == 2,
+        lambda r: r[:, :2],
+        lambda r: r,
+        rotated_3d
+    )
+    
+    return rotated
+
+
+# =============================================================================
+# Example usage:
+if __name__ == "__main__":
+    import jax.random as jr
+
+    # Example 1: 2D coordinates.
+    key = jr.PRNGKey(0)
+    coords_2d = jnp.array([[1.0, 0.0],
+                           [0.0, 1.0],
+                           [-1.0, 0.0],
+                           [0.0, -1.0]])
+    # Rotate these points 45° (π/4 radians) about the z-axis.
+    axis = jnp.array([0.0, 0.0, 1.0])
+    rotated_2d = rotate_coords(coords_2d, theta=jnp.pi/4, axis=axis)
+    print("Original 2D points:\n", coords_2d)
+    print("Rotated 2D points:\n", rotated_2d)
+
+    # Example 2: 3D coordinates.
+    coords_3d = jnp.array([[1.0, 0.0, 0.0],
+                           [0.0, 1.0, 0.0],
+                           [0.0, 0.0, 1.0]])
+    # Rotate these points 60° (π/3 radians) about the axis [1, 1, 1].
+    axis_3d = jnp.array([1.0, 1.0, 1.0])
+    rotated_3d = rotate_coords(coords_3d, theta=jnp.pi/3, axis=axis_3d)
+    print("Original 3D points:\n", coords_3d)
+    print("Rotated 3D points:\n", rotated_3d)
