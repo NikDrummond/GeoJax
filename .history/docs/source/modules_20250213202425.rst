@@ -1,7 +1,7 @@
-GeoJax
+NeuGeometry
 ===========
 
 .. toctree::
    :maxdepth: 4
 
-   GeoJax
+   NeuGeometry

@@ -1,4 +1,4 @@
-GeoJax
+NeuGeometry
 ===========
 
 .. toctree::
