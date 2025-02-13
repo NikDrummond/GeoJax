@@ -822,6 +822,8 @@ def scale_coords(coords: jnp.ndarray, s) -> jnp.ndarray:
 """
 ### To Do
 
+- Scaling point clouds
+
 - rotate to ensure given points are in given quadrants.
 
 
