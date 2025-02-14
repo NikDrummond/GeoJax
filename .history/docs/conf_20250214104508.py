@@ -20,13 +20,21 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'alabaster'
 html_static_path = ['_static']
 
 
+
+
+
+
+# Optionally, set autodoc options:
 autodoc_default_options = {
     'members': True,
     'undoc-members': True,
     'private-members': False,
     'show-inheritance': True,
 }
+
+# Use a theme (like the Read the Docs theme)
+html_theme = 'sphinx_rtd_theme'

@@ -30,3 +30,4 @@ autodoc_default_options = {
     'private-members': False,
     'show-inheritance': True,
 }
+

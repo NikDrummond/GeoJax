@@ -10,7 +10,7 @@ Welcome to GeoJax's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   api_reference
+   mod
 
 Indices and tables
 ==================
