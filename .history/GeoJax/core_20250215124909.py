@@ -1,8 +1,6 @@
 from jax import jit, lax
 import jax.numpy as jnp
-import jax
 
-jax.config.update("jax_enable_x64", True)
 
 @jit
 def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
@@ -28,7 +26,7 @@ def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
 
 @jit
 def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
-    """Calculate the Euclidean norm (magnitude) of a given vector or set of vectors.
+    """Calculate the Euclidean norm (magnitude) of a given array.
 
     Parameters
     ----------
@@ -43,8 +41,6 @@ def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
     if arr.ndim not in {1, 2}:
         return jnp.full((), jnp.nan)  # Return a scalar NaN instead of full_like(arr)
 
-    # useing float64, as integer overflow sometimes gives nan results! - Note, things are set so float32 will be returned
-    arr = arr.astype(jnp.float64)
     return jnp.sqrt(
         jnp.sum(arr**2, axis=-1)
     )  # Equivalent to jnp.linalg.norm but faster
@@ -469,7 +465,6 @@ def robust_covariance_mest(
 
 #     return evals, evecs
 
-
 @jit
 def minimum_theta(
     v1: jnp.ndarray, v2: jnp.ndarray, plane_normal: jnp.ndarray, to_degree: bool = False
@@ -663,7 +658,7 @@ def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.nda
 #     center_coord: jnp.ndarray = jnp.zeros(3),
 # ) -> jnp.ndarray:
 #     """
-#     Aligns a point cloud by centering, performing eigen decomposition, reordering and sign-correcting
+#     Aligns a point cloud by centering, performing eigen decomposition, reordering and sign-correcting 
 #     eigenvectors, and applying the corresponding rotation.
 #     """
 #     # Center the point cloud.
@@ -696,7 +691,6 @@ def rotate_around_axis(coords: jnp.ndarray, theta, axis: jnp.ndarray) -> jnp.nda
 
 #     return aligned
 
-
 @jit
 def coord_eig_decomp(
     coords: jnp.ndarray,
@@ -725,9 +719,7 @@ def coord_eig_decomp(
         )
         evals, evecs = jnp.linalg.eigh(cov)
         evals = lax.cond(PCA, lambda e: e / jnp.sum(e), lambda e: e, evals)
-        evals, evecs = lax.cond(
-            sort, lambda x: (x[0][::-1], x[1][:, ::-1]), lambda x: x, (evals, evecs)
-        )
+        evals, evecs = lax.cond(sort, lambda x: (x[0][::-1], x[1][:, ::-1]), lambda x: x, (evals, evecs))
         evecs = lax.cond(transpose, lambda e: e.T, lambda e: e, evecs)
         return evals, evecs
 
@@ -747,7 +739,7 @@ def align_point_cloud(
     center_coord: jnp.ndarray = jnp.zeros(3),
 ) -> jnp.ndarray:
     """
-    Aligns a point cloud by centering, performing eigen decomposition, reordering and sign-correcting
+    Aligns a point cloud by centering, performing eigen decomposition, reordering and sign-correcting 
     eigenvectors, and applying the corresponding rotation.
     """
 
@@ -760,17 +752,13 @@ def align_point_cloud(
     # Conditionally center the point cloud
     centered = lax.cond(
         center,
-        lambda c: lax.cond(
-            jnp.all(center_coord == 0), center_on_mean, center_on_point, c
-        ),
+        lambda c: lax.cond(jnp.all(center_coord == 0), center_on_mean, center_on_point, c),
         lambda c: c,
-        coords,
+        coords
     )
 
     # Compute eigen decomposition
-    evals, eigvecs = coord_eig_decomp(
-        centered, robust, center=True, PCA=True, sort=True, transpose=True
-    )
+    evals, eigvecs = coord_eig_decomp(centered, robust, center=True, PCA=True, sort=True, transpose=True)
 
     # Sort eigenvectors by eigenvalues in descending order
     sort_indices = jnp.argsort(evals)[::-1]
@@ -792,15 +780,12 @@ def align_point_cloud(
     # Conditionally re-center the point cloud after rotation
     aligned = lax.cond(
         center,
-        lambda r: lax.cond(
-            jnp.all(center_coord == 0), center_on_mean, center_on_point, r
-        ),
+        lambda r: lax.cond(jnp.all(center_coord == 0), center_on_mean, center_on_point, r),
         lambda r: r,
-        rotated,
+        rotated
     )
 
     return aligned
-
 
 @jit
 def scale_coords(coords: jnp.ndarray, s) -> jnp.ndarray:
@@ -829,27 +814,6 @@ def scale_coords(coords: jnp.ndarray, s) -> jnp.ndarray:
         ), "Length of s must equal number of coordinate columns."
     return coords * s
 
-@jit
-def project_to_sphere(arr: jnp.ndarray, r: float, c: jnp.ndarray) -> jnp.ndarray:
-    """Project points onto a sphere with a given radius and center.
-
-    Parameters
-    ----------
-    arr : jnp.ndarray
-        Input array of points.
-    r : float
-        Radius of the target sphere.
-    c : jnp.ndarray
-        Center offset to apply before projection.
-
-    Returns
-    -------
-    jnp.ndarray
-        Points scaled and shifted to lie on the sphere.
-    """
-    l = magnitude(arr)
-    s = (r / jnp.expand_dims(l, axis=-1)) * (arr - c)
-    return s
 
 """
 ### To Do
@@ -858,5 +822,145 @@ def project_to_sphere(arr: jnp.ndarray, r: float, c: jnp.ndarray) -> jnp.ndarray
 
 """
 
+# @jit
+# def circ_mean(samples, high=2 * jnp.pi, low=0, axis=None, weights=None):
+#     """
+#     Compute the circular (angular) mean of an array of angles.
+
+#     If the weighted sum of sines and cosines is zero (i.e. the resultant vector length is zero),
+#     return the midpoint of the interval (low + period/2).
+
+#     Parameters
+#     ----------
+#     samples : array_like
+#         Input angles.
+#     high : float, optional
+#         The high end of the interval (default is 2*pi).
+#     low : float, optional
+#         The low end of the interval (default is 0).
+#     axis : int or None, optional
+#         Axis along which to compute the mean. If None, the input is flattened.
+#     weights : array_like or None, optional
+#         Weights for the angles.
+
+#     Returns
+#     -------
+#     mean : jnp.ndarray
+#         The circular mean, expressed in the same units as the input.
+#     """
+#     samples = jnp.asarray(samples)
+#     period = high - low
+
+#     # If axis is None, flatten the array.
+#     if axis is None:
+#         samples = samples.ravel()
+#         axis = 0
+
+#     # Wrap the samples into the interval [low, high)
+#     samples = (samples - low) % period
+
+#     # Map the angles to [0, 2*pi)
+#     ang = 2 * jnp.pi * samples / period
+
+#     if weights is None:
+#         sum_sin = jnp.sum(jnp.sin(ang), axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang), axis=axis)
+#         count = samples.shape[axis]
+#     else:
+#         weights = jnp.asarray(weights)
+#         sum_sin = jnp.sum(jnp.sin(ang) * weights, axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang) * weights, axis=axis)
+#         count = jnp.sum(weights, axis=axis)
+
+#     # Compute the mean resultant length.
+#     R = jnp.sqrt(sum_sin**2 + sum_cos**2) / count
+#     # Compute the mean angle in [0, 2*pi)
+#     mean_angle = jnp.arctan2(sum_sin, sum_cos)
+#     mean_angle = (mean_angle + 2 * jnp.pi) % (2 * jnp.pi)
+
+#     # If the resultant length is nearly zero, return the midpoint.
+#     result_angle = jnp.where(
+#         R < 1e-6, low + period / 2, low + (mean_angle / (2 * jnp.pi)) * period
+#     )
+#     return result_angle
 
 
+# @jit
+# def circ_var(samples, high=2 * jnp.pi, low=0, axis=None, weights=None):
+#     """
+#     Compute the circular variance of an array of angles.
+
+#     Circular variance is defined as 1 - R, where R is the mean resultant length.
+#     If R is nearly zero, return 1.
+#     """
+#     samples = jnp.asarray(samples)
+#     period = high - low
+
+#     if axis is None:
+#         samples = samples.ravel()
+#         axis = 0
+
+#     # Wrap samples into [low, high)
+#     samples = (samples - low) % period
+
+#     # Map angles to [0, 2*pi)
+#     ang = 2 * jnp.pi * samples / period
+
+#     if weights is None:
+#         sum_sin = jnp.sum(jnp.sin(ang), axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang), axis=axis)
+#         count = samples.shape[axis]
+#     else:
+#         weights = jnp.asarray(weights)
+#         sum_sin = jnp.sum(jnp.sin(ang) * weights, axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang) * weights, axis=axis)
+#         count = jnp.sum(weights, axis=axis)
+
+#     R = jnp.sqrt(sum_sin**2 + sum_cos**2) / count
+#     # If R is very small, return 1 (the maximum variance)
+#     return jnp.where(R < 1e-6, 1.0, 1 - R)
+
+
+# @jit
+# def circ_std(samples, high=2 * jnp.pi, low=0, axis=None, weights=None):
+#     """
+#     Compute the circular standard deviation of an array of angles.
+
+#     It is defined as sqrt(-2 * log(R)). If R is nearly zero, return infinity.
+#     The result is mapped back to the original units.
+#     """
+#     samples = jnp.asarray(samples)
+#     period = high - low
+
+#     if axis is None:
+#         samples = samples.ravel()
+#         axis = 0
+
+#     # Corrected: Wrap samples into [low, high) without shifting after modulo
+#     wrapped = (samples - low) % period
+
+#     # Map angles to [0, 2*pi)
+#     ang = 2 * jnp.pi * wrapped / period
+
+#     if weights is None:
+#         sum_sin = jnp.sum(jnp.sin(ang), axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang), axis=axis)
+#         count = samples.shape[axis]
+#     else:
+#         weights = jnp.asarray(weights)
+#         sum_sin = jnp.sum(jnp.sin(ang) * weights, axis=axis)
+#         sum_cos = jnp.sum(jnp.cos(ang) * weights, axis=axis)
+#         count = jnp.sum(weights, axis=axis)
+
+#     # Mean resultant length, R
+#     R = jnp.sqrt(sum_sin**2 + sum_cos**2) / count
+#     std_rad = jnp.where(R < 1e-6, jnp.inf, jnp.sqrt(-2 * jnp.log(R)))
+#     # Correct mapping back to original units
+#     std = jnp.where(jnp.isinf(std_rad), jnp.inf, std_rad * (period / (2 * jnp.pi)))
+#     return std
+
+@jit
+def jit_project_to_sphere(arr: jnp.ndarray,r:float,c:jnp.ndarray)->jnp.ndarray:
+    l = gj.magnitude(arr)
+    s = (r / jnp.expand_dims(l, axis = -1)) * (arr - c)
+    return s

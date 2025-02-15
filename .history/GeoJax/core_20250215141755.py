@@ -1,6 +1,5 @@
 from jax import jit, lax
 import jax.numpy as jnp
-import jax
 
 jax.config.update("jax_enable_x64", True)
 

@@ -1,8 +1,6 @@
 from jax import jit, lax
 import jax.numpy as jnp
-import jax
 
-jax.config.update("jax_enable_x64", True)
 
 @jit
 def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
@@ -28,7 +26,7 @@ def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
 
 @jit
 def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
-    """Calculate the Euclidean norm (magnitude) of a given vector or set of vectors.
+    """Calculate the Euclidean norm (magnitude) of a given array.
 
     Parameters
     ----------
@@ -43,8 +41,6 @@ def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
     if arr.ndim not in {1, 2}:
         return jnp.full((), jnp.nan)  # Return a scalar NaN instead of full_like(arr)
 
-    # useing float64, as integer overflow sometimes gives nan results! - Note, things are set so float32 will be returned
-    arr = arr.astype(jnp.float64)
     return jnp.sqrt(
         jnp.sum(arr**2, axis=-1)
     )  # Equivalent to jnp.linalg.norm but faster
@@ -831,22 +827,6 @@ def scale_coords(coords: jnp.ndarray, s) -> jnp.ndarray:
 
 @jit
 def project_to_sphere(arr: jnp.ndarray, r: float, c: jnp.ndarray) -> jnp.ndarray:
-    """Project points onto a sphere with a given radius and center.
-
-    Parameters
-    ----------
-    arr : jnp.ndarray
-        Input array of points.
-    r : float
-        Radius of the target sphere.
-    c : jnp.ndarray
-        Center offset to apply before projection.
-
-    Returns
-    -------
-    jnp.ndarray
-        Points scaled and shifted to lie on the sphere.
-    """
     l = magnitude(arr)
     s = (r / jnp.expand_dims(l, axis=-1)) * (arr - c)
     return s

@@ -1,8 +1,6 @@
 from jax import jit, lax
 import jax.numpy as jnp
-import jax
 
-jax.config.update("jax_enable_x64", True)
 
 @jit
 def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:

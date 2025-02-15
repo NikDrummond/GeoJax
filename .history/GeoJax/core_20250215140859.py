@@ -1,8 +1,6 @@
 from jax import jit, lax
 import jax.numpy as jnp
-import jax
 
-jax.config.update("jax_enable_x64", True)
 
 @jit
 def normalise(arr: jnp.ndarray, eps: float = 1e-12) -> jnp.ndarray:
@@ -43,8 +41,9 @@ def magnitude(arr: jnp.ndarray) -> jnp.ndarray:
     if arr.ndim not in {1, 2}:
         return jnp.full((), jnp.nan)  # Return a scalar NaN instead of full_like(arr)
 
-    # useing float64, as integer overflow sometimes gives nan results! - Note, things are set so float32 will be returned
-    arr = arr.astype(jnp.float64)
+    # useing float64, as integer overflow sometimes gives nan results!
+    arr = arr.astype(jnp.float)
+
     return jnp.sqrt(
         jnp.sum(arr**2, axis=-1)
     )  # Equivalent to jnp.linalg.norm but faster
