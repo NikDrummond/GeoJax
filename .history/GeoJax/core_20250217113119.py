@@ -178,7 +178,6 @@ def center_points(pnts:jnp.ndarray, center:jnp.ndarray | None = None) -> jnp.nda
         return _center_points(pnts,center)
     else:
         raise ValueError('Input points and coordinate to centre to must have same dimensions')
-
 @jit
 def angle(
     v1: jnp.ndarray,

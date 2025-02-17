@@ -146,39 +146,30 @@ def reject(v: jnp.ndarray, from_v: jnp.ndarray) -> jnp.ndarray:
     return result
 
 @jit
-def _center_points(pnts: jnp.ndarray, center: jnp.ndarray) -> jnp.ndarray:
-    """ Jitter function to center points"""
-    return pnts - center
-
-def center_points(pnts:jnp.ndarray, center:jnp.ndarray | None = None) -> jnp.ndarray:
-    """Center and array of points on a specified coordinate
+def center_points(pnts:jnp.ndarray, center:jnp.ndarray) -> jnp.ndarray:
+    """Center and array of points on a specified 
 
     Parameters
     ----------
     pnts : jnp.ndarray
-        a point, or array of points
-    center : jnp.ndarray | None
-        a coordinate to center points on. If None, we will center the points on their mean.
+        _description_
+    center : jnp.ndarray
+        _description_
 
     Returns
     -------
     jnp.ndarray
-        points, centred on given coordinate
+        _description_
 
     Raises
     ------
     ValueError
-        If the Given coordinate doesn't have the same dimensions as the given array
+        _description_
+    ValueError
+        _description_
+    ValueError
+        _description_
     """
-
-    if center is None:
-        center = pnts.mean(axis = 0)
-
-    if pnts.shape[-1] == center.shape[0]:
-        return _center_points(pnts,center)
-    else:
-        raise ValueError('Input points and coordinate to centre to must have same dimensions')
-
 @jit
 def angle(
     v1: jnp.ndarray,
