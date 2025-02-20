@@ -146,58 +146,6 @@ def reject(v: jnp.ndarray, from_v: jnp.ndarray) -> jnp.ndarray:
     return result
 
 @jit
-def dot(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
-    """
-    Compute the dot product between two vectors (or batches of vectors).
-
-    If one input is a single vector (1D array) and the other is an array of vectors,
-    the single vector is broadcast. If both inputs are batches, they must have the same 
-    number of rows. If the inputs are not broadcastable, a ValueError is raised.
-
-    Note that this function will automatically convert v1 and v2 to unit vectors and return values
-    between -1 and 1
-
-    Parameters
-    ----------
-    v1 : jnp.ndarray
-        A vector or array of vectors with shape (..., N).
-    v2 : jnp.ndarray
-        A vector or array of vectors with shape (..., N).
-
-    Returns
-    -------
-    jnp.ndarray
-        The dot product computed element-wise. If both inputs were originally 1D,
-        returns a scalar; otherwise returns an array.
-    """
-    # Record whether the original inputs were 1D.
-    orig_v1_is_1d = (v1.ndim == 1)
-    orig_v2_is_1d = (v2.ndim == 1)
-
-    # Convert to at least 2D so that broadcasting works uniformly.
-    v1 = jnp.atleast_2d(v1)
-    v2 = jnp.atleast_2d(v2)
-
-    # Ensure broadcastability along the first axis.
-    if (v1.shape[0] != v2.shape[0]) and (v1.shape[0] != 1) and (v2.shape[0] != 1):
-        raise ValueError("v1 and v2 must have the same number of rows or be broadcastable.")
-
-    # Handle broadcasting by expanding the singleton dimension if necessary.
-    if v1.shape[0] == 1:
-        v1 = jnp.broadcast_to(v1, (v2.shape[0], v1.shape[-1]))
-    if v2.shape[0] == 1:
-        v2 = jnp.broadcast_to(v2, (v1.shape[0], v2.shape[-1]))
-
-    # normalise
-    norm_v1 = normalise(v1)
-    norm_v2 = normalise(v2)
-
-    # Compute the dot product along the last axis.
-    dp = jnp.sum(norm_v1 * norm_v2, axis=-1)
-
-    # If both inputs were originally 1D, return a scalar.
-    return dp[0] if orig_v1_is_1d and orig_v2_is_1d else dp
-@jit
 def cross(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
     """
     Compute the cross product between two 2D or 3D vectors (or batches of vectors).
@@ -271,7 +219,7 @@ def perpendicular(v1:jnp.ndarray,v2:jnp.ndarray, normalise:bool = True) -> jnp.n
         vector(s) perpendicular to v1 and v2
     """
     cross_product = cross(v1,v2)
-    return normalise(cross_product) if normalise else cross_product
+    return GeoJax.normalise(cross_product) if normalise else cross_product
 @jit
 def _center_points(pnts: jnp.ndarray, center: jnp.ndarray) -> jnp.ndarray:
     """ Jitter function to center points"""

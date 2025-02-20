@@ -154,9 +154,6 @@ def dot(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
     the single vector is broadcast. If both inputs are batches, they must have the same 
     number of rows. If the inputs are not broadcastable, a ValueError is raised.
 
-    Note that this function will automatically convert v1 and v2 to unit vectors and return values
-    between -1 and 1
-
     Parameters
     ----------
     v1 : jnp.ndarray
@@ -189,8 +186,8 @@ def dot(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
         v2 = jnp.broadcast_to(v2, (v1.shape[0], v2.shape[-1]))
 
     # normalise
-    norm_v1 = normalise(v1)
-    norm_v2 = normalise(v2)
+    norm_v1 = GeoJax.normalise(v1)
+    norm_v2 = GeoJax.normalise(v2)
 
     # Compute the dot product along the last axis.
     dp = jnp.sum(norm_v1 * norm_v2, axis=-1)

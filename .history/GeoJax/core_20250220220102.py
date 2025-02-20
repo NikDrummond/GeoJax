@@ -154,8 +154,7 @@ def dot(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
     the single vector is broadcast. If both inputs are batches, they must have the same 
     number of rows. If the inputs are not broadcastable, a ValueError is raised.
 
-    Note that this function will automatically convert v1 and v2 to unit vectors and return values
-    between -1 and 1
+    Note that this function will automatically convert v1 and v2 to unit vectors and return 
 
     Parameters
     ----------
