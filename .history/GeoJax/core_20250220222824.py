@@ -247,7 +247,7 @@ def cross(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:
     # If both inputs were originally 1D, return a single (1D) vector.
     return cp[0] if orig_v1_is_1d and orig_v2_is_1d else cp
 
-def perpendicular(v1:jnp.ndarray,v2:jnp.ndarray, return_norm:bool = True) -> jnp.ndarray:
+def perpendicular(v1:jnp.ndarray,v2:jnp.ndarray, normalise:bool = True) -> jnp.ndarray:
     """given two non-collinear vectors, return a vector perpendicular to both based on the
     right hand rule, with v1 being first and v2 being second.
 
@@ -272,7 +272,7 @@ def perpendicular(v1:jnp.ndarray,v2:jnp.ndarray, return_norm:bool = True) -> jnp
         vector(s) perpendicular to v1 and v2
     """
     cross_product = cross(v1,v2)
-    return normalise(cross_product) if return_norm else cross_product
+    return normalise(cross_product) if normalise else cross_product
 @jit
 def _center_points(pnts: jnp.ndarray, center: jnp.ndarray) -> jnp.ndarray:
     """ Jitter function to center points"""

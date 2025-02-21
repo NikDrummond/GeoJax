@@ -272,7 +272,7 @@ def perpendicular(v1:jnp.ndarray,v2:jnp.ndarray, return_norm:bool = True) -> jnp
         vector(s) perpendicular to v1 and v2
     """
     cross_product = cross(v1,v2)
-    return normalise(cross_product) if return_norm else cross_product
+    return normalise(cross_product) if normalise else cross_product
 @jit
 def _center_points(pnts: jnp.ndarray, center: jnp.ndarray) -> jnp.ndarray:
     """ Jitter function to center points"""
