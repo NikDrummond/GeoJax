@@ -37,7 +37,7 @@ __all__ = [
     # core
     "magnitude", "normalize", "dot", "cross", "reject", "project_to_vector",
     "scalar_triple", "reflect", "gram_schmidt", "apply_affine", "scale_along_basis",
-    "point_to_plane_distance", "ray_plane_intersect", "tetrahedron_volume", "scale_point_cloud_by_robust_axis_extent",
+    "point_to_plane_distance", "ray_plane_intersect", "tetrahedron_volume", "scale_point_"
 
     # angles
     "angle", "signed_angle",

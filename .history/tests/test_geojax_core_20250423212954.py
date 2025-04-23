@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from GeoJax import *
-
+# from GeoJax.core import scale_along_basis
 
 def test_magnitude():
     assert jnp.isclose(magnitude(jnp.array([3.0, 4.0, 0.0])), 5.0)
@@ -142,11 +142,3 @@ def test_scale_point_cloud_by_robust_axis_extent_basic():
 
     # Should not be huge values like the outliers would induce
     assert jnp.all(central_mags < 2.0), f"Unexpectedly large magnitudes: {central_mags}"
-
-def test_scale_point_cloud_by_robust_axis_extent_constant_axis():
-    # All points have the same value along axis -> extent should be near zero
-    points = jnp.array([[1.0, 5.0, 3.0]] * 10)
-    scaled = scale_point_cloud_by_robust_axis_extent(points, axis=1)
-
-    # Scaling shouldn't produce NaNs or infs
-    assert jnp.isfinite(scaled).all(), "Scaled points should not contain inf or NaNs"

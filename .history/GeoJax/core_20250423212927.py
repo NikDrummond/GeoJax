@@ -132,44 +132,7 @@ def gram_schmidt(vectors: jnp.ndarray) -> jnp.ndarray:
         Q, _ = step(2, (Q, vectors))
     return Q
 
-@jit
-def scale_point_cloud_by_robust_axis_extent(
-    points: jnp.ndarray,
-    axis: int = 1,
-    lower: float = 1.0,
-    upper: float = 99.0,
-    scale_factor: float = 1.0,
-    eps: float = 1e-6
-) -> jnp.ndarray:
-    """
-    Scale a point cloud based on robust extent (percentile range) along a given axis.
-
-    Parameters
-    ----------
-    points : jnp.ndarray
-        Input point cloud of shape (N, D).
-    axis : int
-        Axis to scale by (default: 1 for Y-axis).
-    lower : float
-        Lower percentile to use (default: 1.0).
-    upper : float
-        Upper percentile to use (default: 99.0).
-    scale_factor : float
-        Factor to apply to inverse of robust extent.
-    eps : float
-        Small value to avoid division by zero.
-
-    Returns
-    -------
-    jnp.ndarray
-        Scaled point cloud.
-    """
-    values = points[:, axis]
-    q_low = jnp.percentile(values, lower)
-    q_high = jnp.percentile(values, upper)
-    robust_extent = q_high - q_low
-    scale = scale_factor / (robust_extent + eps)
-    return points * scale
+    
 
 @jit
 def apply_affine(points: jnp.ndarray, matrix: jnp.ndarray, offset: jnp.ndarray) -> jnp.ndarray:
