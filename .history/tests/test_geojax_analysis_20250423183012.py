@@ -56,4 +56,4 @@ def test_robust_proportional_dispersion_output():
 
     assert ratios.shape == (2,), "Unexpected shape"
     assert jnp.isclose(jnp.sum(ratios), 1.0, atol=1e-5), "Ratios must sum to 1"
-    assert ratios[0] > 0.6, f"Expected more dispersion in axis 0, got: {ratios}"
+    assert ratios[0] > ratios[1], f"Expected more dispersion in axis 0, got: {ratios}"

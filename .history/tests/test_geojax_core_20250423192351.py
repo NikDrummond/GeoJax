@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from GeoJax import *
-# from GeoJax.core import scale_along_basis
+from .core import scale_along_basis
 
 def test_magnitude():
     assert jnp.isclose(magnitude(jnp.array([3.0, 4.0, 0.0])), 5.0)

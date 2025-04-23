@@ -1,7 +1,7 @@
 from .core import (
     magnitude, normalize, dot, cross, reject, project_to_vector,
     scalar_triple, reflect, gram_schmidt, apply_affine,
-    point_to_plane_distance, ray_plane_intersect, tetrahedron_volume, scale_along_basis,
+    point_to_plane_distance, ray_plane_intersect, tetrahedron_volume
 )
 
 from .angles import angle, signed_angle
@@ -23,7 +23,7 @@ from .bounds import (
 from .analysis import (
     mahalanobis_distance, detect_outliers_mahalanobis,
     ellipsoid_axes_from_covariance,
-    robust_proportional_dispersion,
+    robust_proportional_dispersion
 )
 from .checks import (
     is_unit_vector, is_collinear, is_orthogonal,
@@ -35,7 +35,7 @@ from .utils import normalize_angle_array, origin_flip
 __all__ = [
     # core
     "magnitude", "normalize", "dot", "cross", "reject", "project_to_vector",
-    "scalar_triple", "reflect", "gram_schmidt", "apply_affine", "scale_along_basis",
+    "scalar_triple", "reflect", "gram_schmidt", "apply_affine",
     "point_to_plane_distance", "ray_plane_intersect", "tetrahedron_volume",
 
     # angles
@@ -59,7 +59,7 @@ __all__ = [
 
     # analysis
     "mahalanobis_distance", "detect_outliers_mahalanobis",
-    "ellipsoid_axes_from_covariance", "robust_proportional_dispersion",
+    "ellipsoid_axes_from_covariance",
 
     # checks
     "is_unit_vector", "is_collinear", "is_orthogonal",

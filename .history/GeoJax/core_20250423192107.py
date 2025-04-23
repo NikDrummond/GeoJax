@@ -98,7 +98,6 @@ def scale_along_basis(
 
     # Call JIT-compiled function
     return _scale_along_basis_jit(vectors, scale, basis)
-
 @jit
 def gram_schmidt(vectors: jnp.ndarray) -> jnp.ndarray:
     """

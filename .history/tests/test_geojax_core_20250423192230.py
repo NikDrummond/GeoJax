@@ -4,7 +4,6 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from GeoJax import *
-# from GeoJax.core import scale_along_basis
 
 def test_magnitude():
     assert jnp.isclose(magnitude(jnp.array([3.0, 4.0, 0.0])), 5.0)
@@ -87,7 +86,7 @@ def test_tetrahedron_volume():
     volume = tetrahedron_volume(a, b, c, d)
     assert jnp.isclose(volume, 1/6)
 
-def test_uniform_scale_euclidean_basis():
+    def test_uniform_scale_euclidean_basis():
     vectors = jnp.array([[1.0, 2.0], [3.0, 4.0]])
     scaled = scale_along_basis(vectors, scale=2.0)
     expected = vectors * 2.0

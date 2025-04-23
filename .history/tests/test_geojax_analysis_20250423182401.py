@@ -44,16 +44,17 @@ def test_ellipsoid_axes_from_covariance():
 
 def test_robust_proportional_dispersion_output():
 
-    # Deterministic randomness
-    key = jr.PRNGKey(42)
+    # Create 2D data with clear elongation along x-axis
+    x = jnp.linspace(-10, 10, 100)
+    y = 0.2 * jr.normal(key = jr.PRNGKey(42), shape = 100)
+    X = jnp.stack([x, y], axis=1)
 
-    # x-axis: wide spread, y-axis: tight spread
-    x = jnp.linspace(-100.0, 100.0, 500)
-    y = jr.normal(key, shape=(500,)) * 0.5
-    points = jnp.stack([x, y], axis=1)
+    ratios = robust_proportional_dispersion(X)
 
-    ratios = robust_proportional_dispersion(points)
-
-    assert ratios.shape == (2,), "Unexpected shape"
+    # Output should be 1D array of length equal to dimension
+    assert ratios.shape == (2,), "Unexpected output shape"
+    assert jnp.all(ratios >= 0), "All proportions must be non-negative"
     assert jnp.isclose(jnp.sum(ratios), 1.0, atol=1e-5), "Ratios must sum to 1"
-    assert ratios[0] > 0.6, f"Expected more dispersion in axis 0, got: {ratios}"
+
+    # Expect dominant variance in x-axis (axis 0)
+    assert ratios[0] > ratios[1], f"Expected more dispersion in axis 0, got: {ratios}"

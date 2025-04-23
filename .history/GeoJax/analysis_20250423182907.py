@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from jax import jit, lax
 from scipy.stats import chi2
 from .core import magnitude
-from .alignment import coord_eig_decomp
+from .alignment import robust_covariance_mest
 
 @jit
 def mahalanobis_distance(X: jnp.ndarray, mean: jnp.ndarray, cov: jnp.ndarray) -> jnp.ndarray:
@@ -90,6 +90,9 @@ def ellipsoid_axes_from_covariance(cov: jnp.ndarray, scale: float = 1.0) -> jnp.
     return evecs.T * lengths[:, None]
 
 @jit
+from GeoJax.analysis import robust_covariance_mest
+
+@jit
 def robust_proportional_dispersion(X: jnp.ndarray) -> jnp.ndarray:
     """
     Compute the proportion of total dispersion along each eigenvector
@@ -105,7 +108,8 @@ def robust_proportional_dispersion(X: jnp.ndarray) -> jnp.ndarray:
     jnp.ndarray
         Normalized variance proportions along each principal axis (D,).
     """
-    evals, _ = coord_eig_decomp(X, PCA = False)
-    evals = jnp.clip(evals, min=0.0)
+    cov = robust_covariance_mest(X)
+    evals, _ = jnp.linalg.eigh(cov)
+    evals = jnp.clip(evals, a_min=0.0)
     return evals / jnp.sum(evals)
 

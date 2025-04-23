@@ -106,6 +106,6 @@ def robust_proportional_dispersion(X: jnp.ndarray) -> jnp.ndarray:
         Normalized variance proportions along each principal axis (D,).
     """
     evals, _ = coord_eig_decomp(X, PCA = False)
-    evals = jnp.clip(evals, min=0.0)
+    evals = jnp.clip(evals, a_min=0.0)
     return evals / jnp.sum(evals)
 

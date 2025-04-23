@@ -33,7 +33,7 @@ def test_mahalanobis_distance():
 
 def test_ellipsoid_axes_from_covariance():
     cov = jnp.array([
-        [2.0, 0.0, 0.0],
+        [20.0, 0.0, 0.0],
         [0.0, 1.0, 0.0],
         [0.0, 0.0, 0.5]
     ])

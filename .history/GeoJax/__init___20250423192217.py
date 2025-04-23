@@ -35,7 +35,7 @@ from .utils import normalize_angle_array, origin_flip
 __all__ = [
     # core
     "magnitude", "normalize", "dot", "cross", "reject", "project_to_vector",
-    "scalar_triple", "reflect", "gram_schmidt", "apply_affine", "scale_along_basis",
+    "scalar_triple", "reflect", "gram_schmidt", "apply_affine",
     "point_to_plane_distance", "ray_plane_intersect", "tetrahedron_volume",
 
     # angles

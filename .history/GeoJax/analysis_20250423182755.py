@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from jax import jit, lax
 from scipy.stats import chi2
 from .core import magnitude
-from .alignment import coord_eig_decomp
+from .alignment import robust
 
 @jit
 def mahalanobis_distance(X: jnp.ndarray, mean: jnp.ndarray, cov: jnp.ndarray) -> jnp.ndarray:
@@ -92,8 +92,7 @@ def ellipsoid_axes_from_covariance(cov: jnp.ndarray, scale: float = 1.0) -> jnp.
 @jit
 def robust_proportional_dispersion(X: jnp.ndarray) -> jnp.ndarray:
     """
-    Compute the proportion of total dispersion along each eigenvector
-    using a robust M-estimated covariance matrix.
+    Compute the proportion of total dispersion along each eigenvector of the robust covariance matrix.
 
     Parameters
     ----------
@@ -105,7 +104,22 @@ def robust_proportional_dispersion(X: jnp.ndarray) -> jnp.ndarray:
     jnp.ndarray
         Normalized variance proportions along each principal axis (D,).
     """
-    evals, _ = coord_eig_decomp(X, PCA = False)
-    evals = jnp.clip(evals, min=0.0)
-    return evals / jnp.sum(evals)
+    # Step 1: Robust centering (median-based)
+    X_centered = X - jnp.median(X, axis=0)
 
+    # Step 2: Robust covariance via MAD (approximate)
+    mad = jnp.median(jnp.abs(X_centered), axis=0)
+    mad = jnp.where(mad < 1e-6, 1e-6, mad)  # avoid division by zero
+
+    X_scaled = X_centered / mad
+
+    # Step 3: Covariance estimate
+    cov = jnp.cov(X_scaled, rowvar=False, bias=True)
+
+    # Step 4: Eigen-decomposition
+    evals, _ = jnp.linalg.eigh(cov)
+    evals = jnp.clip(evals, a_min=0, a_max=None)  # avoid negatives due to numerical noise
+
+    # Step 5: Normalize eigenvalues
+    total = jnp.sum(evals)
+    return evals / total
