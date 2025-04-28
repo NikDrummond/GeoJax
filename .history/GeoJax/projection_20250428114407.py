@@ -125,6 +125,12 @@ def stereographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     denom = jnp.where(denom < 1e-6, 1e-6, denom)  # Avoid division by zero
     return jnp.stack([x / denom, y / denom], axis=-1)
 
+# Future: Lambert, etc.
+
+# -------------------------------
+# Dispatcher
+# -------------------------------
+
 def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -> jnp.ndarray:
     """
     Project 3D points to 2D using a specified method.
@@ -147,28 +153,27 @@ def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -
     jnp.ndarray
         Projected 2D points (..., 2)
     """
-
-    # drop a specified axis
     if method == "axis_plane":
         drop_axis = kwargs.get('drop_axis', None)
         if drop_axis not in ['x','y','z']:
             raise ValueError("For 'Axis_plane' projection you must provide x,y, or z axis to drop.")
-        elif drop_axis == 'x':
-            return project_to_yz_plane(points)
-        elif drop_axis == 'y':
-            return project_to_xz_plane(points)
-        elif drop_axis == 'z':
-            return project_to_xy_plane(points)
-    # project to plane defined by normal
+    elif drop_axis == 'x':
+        pass
+    elif drop_axis == 'y':
+        pass
+    elif drop_axis == 'z'
+        return project_to_xy_plane(points)
+    elif method == "xz_plane":
+        return project_to_xz_plane(points)
+    elif method == "yz_plane":
+        return project_to_yz_plane(points)
     elif method == "plane":
         normal = kwargs.get("normal", None)
         if normal is None:
             raise ValueError("For 'plane' projection, you must provide 'normal' vector.")
         return project_to_plane(points, normal=normal)[..., :2]  # project to plane and take 2D
-    # do orthographic projection
     elif method == "orthographic":
         return orthographic_projection(points)
-    # stereographic projection
     elif method == "stereographic":
         return stereographic_projection(points)
     else:

@@ -7,8 +7,12 @@ from GeoJax.projection import (
     project_to_sphere,
     project_to_vector,
     project_to_plane,
-    project_to_2d
+    
 )
+
+import jax.numpy as jnp
+import pytest
+from GeoJax.projection import project_to_2d
 
 def test_reject_axis_zero():
     vec = jnp.array([[1.0, 2.0, 3.0]])

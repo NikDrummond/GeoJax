@@ -125,6 +125,12 @@ def stereographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     denom = jnp.where(denom < 1e-6, 1e-6, denom)  # Avoid division by zero
     return jnp.stack([x / denom, y / denom], axis=-1)
 
+# Future: Lambert, etc.
+
+# -------------------------------
+# Dispatcher
+# -------------------------------
+
 def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -> jnp.ndarray:
     """
     Project 3D points to 2D using a specified method.
@@ -165,10 +171,8 @@ def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -
         if normal is None:
             raise ValueError("For 'plane' projection, you must provide 'normal' vector.")
         return project_to_plane(points, normal=normal)[..., :2]  # project to plane and take 2D
-    # do orthographic projection
     elif method == "orthographic":
         return orthographic_projection(points)
-    # stereographic projection
     elif method == "stereographic":
         return stereographic_projection(points)
     else:
