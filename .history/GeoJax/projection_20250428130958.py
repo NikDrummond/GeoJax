@@ -200,7 +200,6 @@ def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -
     # mercator
     elif method == "mercator":
         return mercator_projection(points)
-    # lambert
     elif method == "lambert":
         return lambert_azimuthal_projection(points)
     else:

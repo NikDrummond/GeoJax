@@ -147,7 +147,6 @@ def lambert_azimuthal_projection(points: jnp.ndarray) -> jnp.ndarray:
     lat = jnp.arcsin(z)
     k = jnp.sqrt(2.0 / (1.0 + z))
     return jnp.stack([k * x, k * y], axis=-1)
-
 def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -> jnp.ndarray:
     """
     Project 3D points to 2D using a specified method.
@@ -194,14 +193,5 @@ def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -
     # stereographic projection
     elif method == "stereographic":
         return stereographic_projection(points)
-    # equirectangular
-    elif method == "equirectangular":
-        return equirectangular_projection(points)
-    # mercator
-    elif method == "mercator":
-        return mercator_projection(points)
-    # lambert
-    elif method == "lambert":
-        return lambert_azimuthal_projection(points)
     else:
         raise ValueError(f"Unknown projection method: {method}")

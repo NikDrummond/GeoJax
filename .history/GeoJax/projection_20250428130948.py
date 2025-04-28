@@ -194,13 +194,11 @@ def project_to_2d(points: jnp.ndarray, method: str = "orthographic", **kwargs) -
     # stereographic projection
     elif method == "stereographic":
         return stereographic_projection(points)
-    # equirectangular
+    # equi
     elif method == "equirectangular":
         return equirectangular_projection(points)
-    # mercator
     elif method == "mercator":
         return mercator_projection(points)
-    # lambert
     elif method == "lambert":
         return lambert_azimuthal_projection(points)
     else:
