@@ -2,7 +2,7 @@
 # Geometric projections using JAX
 # Includes: reject_axis, project_to_sphere, project_to_vector, project_to_plane
 
-from jax import jit, lax, vmap
+from jax import jit, lax
 import jax.numpy as jnp
 from functools import partial
 from .core import magnitude, normalize, reject
@@ -33,7 +33,6 @@ def reject_axis(vectors: jnp.ndarray, axis: int, squash: bool = False) -> jnp.nd
         return vectors[..., jnp.array([i for i in range(3) if i != axis])]
     else:
         return vectors.at[..., axis].set(0.0)
-
 
 @jit
 def project_to_sphere(
@@ -178,95 +177,45 @@ def orthographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     return points[..., :2]
 
 
-def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp.ndarray:
-    """
-    Rotate `points` so that `north_pole` aligns with the z-axis.
-    Assumes both inputs are normalized.
-    """
-    north_pole = normalize(north_pole)
-    z_axis = jnp.array([0.0, 0.0, 1.0])
-
-    axis = jnp.cross(north_pole, z_axis)
-    angle = jnp.arccos(jnp.clip(jnp.dot(north_pole, z_axis), -1.0, 1.0))
-    axis_norm = normalize(axis)
-
-    def rotate(v):
-        c = jnp.cos(angle)
-        s = jnp.sin(angle)
-        return (
-            v * c
-            + jnp.cross(axis_norm, v) * s
-            + axis_norm * jnp.dot(axis_norm, v) * (1 - c)
-        )
-
-    def apply_rotation():
-        return vmap(rotate)(points)
-
-    def return_original():
-        return points
-
-    is_aligned = jnp.allclose(north_pole, z_axis, atol=1e-6)
-
-    return lax.cond(is_aligned, return_original, apply_rotation)
-
-
 @jit
-def stereographic_projection(
-    points: jnp.ndarray, north_pole: jnp.ndarray = None
-) -> jnp.ndarray:
+def stereographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     """
-    Stereographic projection from the north pole of a unit sphere onto the equatorial plane.
+    Stereographic projection from the north pole of the unit sphere onto the plane z=0.
 
     Parameters
     ----------
     points : jnp.ndarray
-        Input points of shape (..., 3), assumed to lie on a unit sphere.
-    north_pole : jnp.ndarray, optional
-        A unit 3D vector defining the direction of the north pole. If provided, input points
-        will be rotated so that this vector aligns with the +z axis before projection.
-        Default is None, which assumes the north pole is [0, 0, 1].
+        Input points (..., 3), assumed to lie on a unit sphere.
 
     Returns
     -------
     jnp.ndarray
-        Projected 2D coordinates of shape (..., 2) in the stereographic plane.
+        Projected points (..., 2).
     """
-
+    # make sure we have unit vectors
     norm_points = normalize(points)
-    if north_pole is not None:
-        norm_points = _rotate_to_align_with_z(norm_points, north_pole)
-
     x, y, z = norm_points[..., 0], norm_points[..., 1], norm_points[..., 2]
     denom = jnp.clip(1.0 - z, 1e-6, jnp.inf)
     return jnp.stack([x / denom, y / denom], axis=-1)
 
 
 @jit
-def equirectangular_projection(
-    points: jnp.ndarray, north_pole: jnp.ndarray = None
-) -> jnp.ndarray:
+def equirectangular_projection(points: jnp.ndarray) -> jnp.ndarray:
     """
-    Equirectangular projection converting spherical coordinates to (longitude, latitude).
+    Equirectangular projection (longitude, latitude).
 
     Parameters
     ----------
     points : jnp.ndarray
-        Input points of shape (..., 3), assumed to lie on a unit sphere.
-    north_pole : jnp.ndarray, optional
-        A unit 3D vector defining the direction of the north pole. If provided, input points
-        will be rotated so that this vector aligns with the +z axis before computing latitude.
-        Default is None, which assumes the north pole is [0, 0, 1].
+        Input points (..., 3), assumed to lie on a unit sphere.
 
     Returns
     -------
     jnp.ndarray
-        Projected (longitude, latitude) in radians, shape (..., 2).
+        (longitude, latitude) in radians (..., 2).
     """
-
+        # make sure we have unit vectors
     norm_points = normalize(points)
-    if north_pole is not None:
-        norm_points = _rotate_to_align_with_z(norm_points, north_pole)
-
     x, y, z = norm_points[..., 0], norm_points[..., 1], norm_points[..., 2]
     lon = jnp.arctan2(y, x)
     lat = jnp.arcsin(jnp.clip(z, -1.0, 1.0))
@@ -274,32 +223,21 @@ def equirectangular_projection(
 
 
 @jit
-def mercator_projection(
-    points: jnp.ndarray, north_pole: jnp.ndarray = None
-) -> jnp.ndarray:
+def mercator_projection(points: jnp.ndarray) -> jnp.ndarray:
     """
-    Mercator projection mapping spherical coordinates to a cylindrical surface.
+    Mercator projection of spherical coordinates.
 
     Parameters
     ----------
     points : jnp.ndarray
-        Input points of shape (..., 3), assumed to lie on a unit sphere.
-    north_pole : jnp.ndarray, optional
-        A unit 3D vector defining the direction of the north pole. If provided, input points
-        will be rotated so that this vector aligns with the +z axis before computing latitude.
-        Default is None, which assumes the north pole is [0, 0, 1].
+        Input points (..., 3), assumed to lie on a unit sphere.
 
     Returns
     -------
     jnp.ndarray
-        Projected (longitude, Mercator Y) coordinates of shape (..., 2).
+        (longitude, Mercator Y) coordinates (..., 2).
     """
-
-    norm_points = normalize(points)
-    if north_pole is not None:
-        norm_points = _rotate_to_align_with_z(norm_points, north_pole)
-
-    x, y, z = norm_points[..., 0], norm_points[..., 1], norm_points[..., 2]
+    x, y, z = points[..., 0], points[..., 1], points[..., 2]
     lon = jnp.arctan2(y, x)
     lat = jnp.arcsin(jnp.clip(z, -0.9999, 0.9999))
     merc_y = jnp.log(jnp.tan((jnp.pi / 4) + (lat / 2)))
@@ -307,32 +245,21 @@ def mercator_projection(
 
 
 @jit
-def lambert_azimuthal_projection(
-    points: jnp.ndarray, north_pole: jnp.ndarray = None
-) -> jnp.ndarray:
+def lambert_azimuthal_projection(points: jnp.ndarray) -> jnp.ndarray:
     """
-    Lambert azimuthal equal-area projection centered at the north pole.
+    Lambert azimuthal equal-area projection.
 
     Parameters
     ----------
     points : jnp.ndarray
-        Input points of shape (..., 3), assumed to lie on a unit sphere.
-    north_pole : jnp.ndarray, optional
-        A unit 3D vector defining the direction of the north pole. If provided, input points
-        will be rotated so that this vector aligns with the +z axis before projection.
-        Default is None, which assumes the north pole is [0, 0, 1].
+        Input points (..., 3), assumed to lie on a unit sphere.
 
     Returns
     -------
     jnp.ndarray
-        Projected 2D coordinates of shape (..., 2) in the Lambert azimuthal plane.
+        Projected 2D coordinates (..., 2).
     """
-
-    norm_points = normalize(points)
-    if north_pole is not None:
-        norm_points = _rotate_to_align_with_z(norm_points, north_pole)
-
-    x, y, z = norm_points[..., 0], norm_points[..., 1], norm_points[..., 2]
+    x, y, z = points[..., 0], points[..., 1], points[..., 2]
     k = jnp.sqrt(2.0 / (1.0 + jnp.clip(z, -1.0, 1.0)))
     return jnp.stack([k * x, k * y], axis=-1)
 
@@ -341,53 +268,32 @@ def project_to_2d(
     points: jnp.ndarray, method: str = "orthographic", **kwargs
 ) -> jnp.ndarray:
     """
-    Project 3D points to 2D using a specified projection method.
-
-    Supports both planar projections (by dropping an axis or projecting to a plane)
-    and spherical projections (e.g., stereographic, Mercator), with the option to
-    rotate the sphere so that a user-defined "north pole" vector aligns with the +z axis.
+    Project 3D points to 2D using a specified method.
 
     Parameters
     ----------
     points : jnp.ndarray
-        Array of 3D input points with shape (..., 3). For spherical projections,
-        points are assumed to lie on a unit sphere (and will be normalized internally).
+        Array of shape (..., 3).
     method : str
-        Projection method to use. Options include:
-
-        - "xy_plane", "xz_plane", "yz_plane": Drop one of the Cartesian axes.
-        - "axis_plane": Drop a specified axis using `drop_axis` argument.
-        - "plane": Project onto an arbitrary plane, defined via a normal vector.
-        - "orthographic": Project orthographically onto the xy-plane.
-        - "stereographic": Stereographic projection from the north pole.
-        - "equirectangular": Latitude-longitude mapping.
-        - "mercator": Cylindrical conformal map.
-        - "lambert": Lambert azimuthal equal-area projection.
-
-    **kwargs :
-        Additional keyword arguments depending on the method:
-
-        - drop_axis : str
-            Required for "axis_plane". One of {"x", "y", "z"}.
-        - normal : jnp.ndarray
-            Required for "plane". A 3D vector defining the plane normal.
-        - north_pole : jnp.ndarray, optional
-            For spherical projections ("stereographic", "equirectangular", "mercator", "lambert").
-            A unit 3D vector specifying the desired orientation of the north pole.
-            If provided, input points will be rotated so this vector aligns with the +z axis
-            before projection. Default is the canonical z-axis [0, 0, 1].
+        Projection method:
+        - "xy_plane", "xz_plane", "yz_plane"
+        - "axis_plane" (drop specified axis: 'x', 'y', or 'z')
+        - "plane" (custom plane normal required)
+        - "orthographic"
+        - "stereographic"
+        - "equirectangular"
+        - "mercator"
+        - "lambert"
+    **kwargs
+        Extra arguments depending on method:
+        - drop_axis : str, for 'axis_plane'
+        - normal : jnp.ndarray, for 'plane'
 
     Returns
     -------
     jnp.ndarray
-        Array of 2D projected points with shape (..., 2), depending on the chosen method.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported method is given or required kwargs are missing.
+        Projected 2D points (..., 2).
     """
-
     if method == "axis_plane":
         drop_axis = kwargs.get("drop_axis", None)
         if drop_axis not in ["x", "y", "z"]:
@@ -413,20 +319,16 @@ def project_to_2d(
         return orthographic_projection(points)
 
     elif method == "stereographic":
-        north_pole = kwargs.get("north_pole", None)
-        return stereographic_projection(points, north_pole=north_pole)
+        return stereographic_projection(points)
 
     elif method == "equirectangular":
-        north_pole = kwargs.get("north_pole", None)
-        return equirectangular_projection(points, north_pole=north_pole)
+        return equirectangular_projection(points)
 
     elif method == "mercator":
-        north_pole = kwargs.get("north_pole", None)
-        return mercator_projection(points, north_pole=north_pole)
+        return mercator_projection(points)
 
     elif method == "lambert":
-        north_pole = kwargs.get("north_pole", None)
-        return lambert_azimuthal_projection(points, north_pole=north_pole)
+        return lambert_azimuthal_projection(points)
 
     else:
         raise ValueError(f"Unknown projection method: {method}")

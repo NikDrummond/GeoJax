@@ -28,6 +28,8 @@ def is_orthogonal(v1: jnp.ndarray, v2: jnp.ndarray, atol: float = 1e-6) -> jnp.n
     """
     return jnp.isclose(dot(v1, v2), 0.0, atol=atol)
 
+
+
 @jit
 def orthonormal_basis_from_vector(v: jnp.ndarray) -> jnp.ndarray:
     """

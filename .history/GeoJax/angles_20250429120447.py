@@ -89,28 +89,8 @@ def signed_angle(
     theta = jnp.arctan2(y, x)
     # return jnp.degrees(theta) if to_degree else theta
     # return lax.cond(to_degree, lambda x: jnp.degrees(x), lambda x: x, result)
-    return lax.cond(to_degree, lambda x: jnp.degrees(theta), lambda x: x, theta)
 
-@partial(jit, static_argnames=['to_degree'])
-def angle_between_planes(n1: jnp.ndarray, n2: jnp.ndarray, to_degree: bool = False) -> jnp.ndarray:
-    """
-    Compute the angle between two planes, given their normals.
 
-    Parameters
-    ----------
-    n1, n2 : jnp.ndarray
-        Normal vectors to the planes.
-    to_degree : bool
-        Return angle in degrees if True.
-
-    Returns
-    -------
-    jnp.ndarray
-        The angle between the planes.
-    """
-    cos_theta = dot(n1, n2)
-    angle = jnp.arccos(jnp.clip(cos_theta, -1.0, 1.0))
-    return lax.cond(to_degree, lambda x: jnp.degrees(x), lambda x: x, angle)
 
 @jit
 def minimum_signed_angle(

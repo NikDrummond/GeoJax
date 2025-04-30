@@ -29,6 +29,8 @@ def test_is_orthogonal():
     assert is_orthogonal(v1, v2)
     assert not is_orthogonal(v1, jnp.array([1.0, 1.0, 0.0]))
 
+
+
 def test_orthonormal_basis_from_vector():
     v = jnp.array([1.0, 0.0, 0.0])
     basis = orthonormal_basis_from_vector(v)

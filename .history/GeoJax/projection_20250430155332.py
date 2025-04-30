@@ -178,6 +178,8 @@ def orthographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     return points[..., :2]
 
 
+from jax import lax
+
 def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp.ndarray:
     """
     Rotate `points` so that `north_pole` aligns with the z-axis.
@@ -200,7 +202,7 @@ def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp
         )
 
     def apply_rotation():
-        return vmap(rotate)(points)
+        return jax.vmap(rotate)(points)
 
     def return_original():
         return points

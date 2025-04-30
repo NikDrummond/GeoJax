@@ -81,7 +81,6 @@ __all__ = [
     # angles
     "angle",
     "signed_angle",
-    "angle_between_planes",
     # rotation
     "rotation_matrix_from_rotvec",
     "rotate_around_axis",

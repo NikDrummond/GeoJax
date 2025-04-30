@@ -3,7 +3,7 @@
 
 from jax import jit, lax
 import jax.numpy as jnp
-from .core import normalize, cross, dot, magnitude
+from .core import magnitude, normalize
 
 @jit
 def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:
@@ -68,6 +68,8 @@ def rotate_around_axis(coords: jnp.ndarray, theta: float, axis: jnp.ndarray) -> 
     coords_3d = jnp.concatenate([coords, jnp.zeros((coords.shape[0], 1))], axis=1) if is_2d else coords
     rotated = coords_3d @ R.T
     return rotated[:, :2] if is_2d else rotated
+
+
 
 @jit
 def rotation_matrix_between_vectors(v1: jnp.ndarray, v2: jnp.ndarray) -> jnp.ndarray:

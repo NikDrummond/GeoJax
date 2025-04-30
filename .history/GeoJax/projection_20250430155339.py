@@ -200,7 +200,7 @@ def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp
         )
 
     def apply_rotation():
-        return vmap(rotate)(points)
+        return jax.vmap(rotate)(points)
 
     def return_original():
         return points

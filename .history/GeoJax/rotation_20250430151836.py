@@ -3,6 +3,10 @@
 
 from jax import jit, lax
 import jax.numpy as jnp
+from .core import magnitude, normalize
+
+from jax import jit, lax
+import jax.numpy as jnp
 from .core import normalize, cross, dot, magnitude
 
 @jit

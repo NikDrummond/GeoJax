@@ -16,7 +16,7 @@ from .core import (
     scale_point_cloud_by_robust_axis_extent,
 )
 
-from .angles import angle, signed_angle, angle_between_planes
+from .angles import angle, signed_angle, angle_between_planes,
 from .rotation import (
     rotation_matrix_from_rotvec,
     rotate_around_axis,
@@ -81,7 +81,6 @@ __all__ = [
     # angles
     "angle",
     "signed_angle",
-    "angle_between_planes",
     # rotation
     "rotation_matrix_from_rotvec",
     "rotate_around_axis",
@@ -123,6 +122,7 @@ __all__ = [
     "is_unit_vector",
     "is_collinear",
     "is_orthogonal",
+    "angle_between_planes",
     "orthonormal_basis_from_vector",
     # basis
     "basis",

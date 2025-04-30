@@ -178,7 +178,9 @@ def orthographic_projection(points: jnp.ndarray) -> jnp.ndarray:
     return points[..., :2]
 
 
-def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp.ndarray:
+def _rotate_to_align_with_z(
+    points: jnp.ndarray, north_pole: jnp.ndarray
+) -> jnp.ndarray:
     """
     Rotate `points` so that `north_pole` aligns with the z-axis.
     Assumes both inputs are normalized.
@@ -186,28 +188,24 @@ def _rotate_to_align_with_z(points: jnp.ndarray, north_pole: jnp.ndarray) -> jnp
     north_pole = normalize(north_pole)
     z_axis = jnp.array([0.0, 0.0, 1.0])
 
+    # If already aligned, return original
+    if jnp.allclose(north_pole, z_axis, atol=1e-6):
+        return points
+
     axis = jnp.cross(north_pole, z_axis)
     angle = jnp.arccos(jnp.clip(jnp.dot(north_pole, z_axis), -1.0, 1.0))
-    axis_norm = normalize(axis)
 
     def rotate(v):
         c = jnp.cos(angle)
         s = jnp.sin(angle)
+        axis_norm = normalize(axis)
         return (
             v * c
             + jnp.cross(axis_norm, v) * s
             + axis_norm * jnp.dot(axis_norm, v) * (1 - c)
         )
 
-    def apply_rotation():
-        return vmap(rotate)(points)
-
-    def return_original():
-        return points
-
-    is_aligned = jnp.allclose(north_pole, z_axis, atol=1e-6)
-
-    return lax.cond(is_aligned, return_original, apply_rotation)
+    return vmap(rotate)(points)
 
 
 @jit

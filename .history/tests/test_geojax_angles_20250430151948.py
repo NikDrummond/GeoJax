@@ -3,7 +3,7 @@
 
 import pytest
 import jax.numpy as jnp
-from GeoJax import angle, signed_angle, angle_between_planes
+from GeoJax import angle, signed_angle
 
 def test_angle_between_vectors():
     v1 = jnp.array([1.0, 0.0, 0.0])

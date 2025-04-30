@@ -3,7 +3,7 @@
 
 from jax import jit, lax
 import jax.numpy as jnp
-from .core import normalize, cross, dot, magnitude
+from .core import magnitude, normalize
 
 @jit
 def rotation_matrix_from_rotvec(rot_vec: jnp.ndarray) -> jnp.ndarray:

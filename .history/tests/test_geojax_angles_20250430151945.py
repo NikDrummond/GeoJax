@@ -3,7 +3,7 @@
 
 import pytest
 import jax.numpy as jnp
-from GeoJax import angle, signed_angle, angle_between_planes
+from GeoJax import angle, signed_angle
 
 def test_angle_between_vectors():
     v1 = jnp.array([1.0, 0.0, 0.0])
@@ -39,7 +39,7 @@ def test_signed_angle_collinear():
     ang = signed_angle(a, b, n, to_degree=True)
     assert pytest.approx(ang.item(), abs=1e-4) == 180.0
 
-def test_angle_between_planes():
+    def test_angle_between_planes():
     n1 = jnp.array([0.0, 0.0, 1.0])
     n2 = jnp.array([0.0, 1.0, 0.0])
     rad = angle_between_planes(n1, n2)
