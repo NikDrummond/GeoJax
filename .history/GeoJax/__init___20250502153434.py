@@ -45,13 +45,7 @@ from .alignment import (
     minimum_theta,
 )
 from .circstats import circmean, circstd, circvar
-from .bounds import (
-    aabb_bounds,
-    bounding_sphere,
-    oriented_bounding_box,
-    bounding_cylinder,
-    tight_aabb_in_frame,
-)
+from .bounds import aabb_bounds, bounding_sphere, oriented_bounding_box, bounding_cylinder, tight_aabb_in_frame
 from .analysis import (
     mahalanobis_distance,
     detect_outliers_mahalanobis,
@@ -130,8 +124,6 @@ __all__ = [
     "aabb_bounds",
     "bounding_sphere",
     "oriented_bounding_box",
-    "bounding_cylinder",
-    "tight_aabb_in_frame",
     # analysis
     "mahalanobis_distance",
     "detect_outliers_mahalanobis",

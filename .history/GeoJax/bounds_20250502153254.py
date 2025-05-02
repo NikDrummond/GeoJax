@@ -6,7 +6,6 @@ from jax import jit
 from .core import magnitude, apply_affine
 from .alignment import coord_eig_decomp
 
-
 @jit
 def aabb_bounds(points: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
     """
@@ -65,19 +64,19 @@ def oriented_bounding_box(points: jnp.ndarray) -> dict:
         - 'extents': jnp.ndarray (3,) (half-widths along each axis)
     """
     center = jnp.mean(points, axis=0)
-    _, eigvecs = coord_eig_decomp(
-        points, robust=False, center=True, PCA=False, sort=True, transpose=True
-    )
+    _, eigvecs = coord_eig_decomp(points, robust=False, center=True, PCA=False, sort=True, transpose=True)
 
     local_coords = jnp.dot(points - center, eigvecs.T)
-    min_corner, max_corner = jnp.min(local_coords, axis=0), jnp.max(
-        local_coords, axis=0
-    )
+    min_corner, max_corner = jnp.min(local_coords, axis=0), jnp.max(local_coords, axis=0)
     extents = (max_corner - min_corner) / 2.0
     obb_center_local = (min_corner + max_corner) / 2.0
     obb_center = jnp.dot(obb_center_local, eigvecs) + center
 
-    return {"center": obb_center, "axes": eigvecs, "extents": extents}
+    return {
+        "center": obb_center,
+        "axes": eigvecs,
+        "extents": extents
+    }
 
 
 def bounding_cylinder(points: jnp.ndarray) -> dict:
@@ -86,9 +85,7 @@ def bounding_cylinder(points: jnp.ndarray) -> dict:
     Useful for elongated shapes.
     """
     center = jnp.mean(points, axis=0)
-    _, eigvecs = coord_eig_decomp(
-        points, robust=False, center=True, PCA=False, sort=True, transpose=True
-    )
+    _, eigvecs = coord_eig_decomp(points, robust=False, center=True, PCA=False, sort=True, transpose=True)
     major_axis = eigvecs[0]
 
     projections = points - jnp.outer(jnp.dot(points - center, major_axis), major_axis)
@@ -97,7 +94,12 @@ def bounding_cylinder(points: jnp.ndarray) -> dict:
     heights = jnp.dot(points - center, major_axis)
     height = jnp.max(heights) - jnp.min(heights)
 
-    return {"axis": major_axis, "center": center, "radius": radius, "height": height}
+    return {
+        "axis": major_axis,
+        "center": center,
+        "radius": radius,
+        "height": height
+    }
 
 
 def tight_aabb_in_frame(points: jnp.ndarray, frame_axes: jnp.ndarray) -> dict:
@@ -121,4 +123,8 @@ def tight_aabb_in_frame(points: jnp.ndarray, frame_axes: jnp.ndarray) -> dict:
     center_local = (min_corner + max_corner) / 2.0
     center = jnp.dot(center_local, frame_axes)
 
-    return {"center": center, "extents": extents, "axes": frame_axes}
+    return {
+        "center": center,
+        "extents": extents,
+        "axes": frame_axes
+    }
