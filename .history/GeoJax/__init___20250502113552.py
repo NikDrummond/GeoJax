@@ -60,15 +60,7 @@ from .checks import (
 )
 from .basis import basis
 from .utils import normalize_angle_array, origin_flip
-from .distance import (
-    euclidean,
-    manhattan,
-    chebyshev,
-    minkowski,
-    cosine,
-    haversine,
-    compute_distance,
-)
+from .distance import euclidean, manhattan, chebyshev, minkowski, cosine, 
 
 
 __all__ = [
@@ -134,14 +126,6 @@ __all__ = [
     "is_collinear",
     "is_orthogonal",
     "orthonormal_basis_from_vector",
-    # distance
-    "euclidean",
-    "manhattan",
-    "chebyshev",
-    "minkowski",
-    "cosine",
-    "haversine",
-    "compute_distance",
     # basis
     "basis",
     # utils
