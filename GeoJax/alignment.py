@@ -159,9 +159,16 @@ def align_point_cloud(
         coords,
     )
 
-    evals, eigvecs = coord_eig_decomp(
-        centered, robust=robust, center=True, PCA=True, sort=True, transpose=True
+    # evals, eigvecs = coord_eig_decomp(
+    #     centered, robust=robust, center=True, PCA=True, sort=True, transpose=True
+    # )
+    evals, eigvecs = lax.cond(
+        robust,
+        lambda _: coord_eig_decomp(centered, robust=True, center=True, PCA=True, sort=True, transpose=True),
+        lambda _: coord_eig_decomp(centered, robust=False, center=True, PCA=True, sort=True, transpose=True),
+        operand=None
     )
+
     sorted_vecs = eigvecs[jnp.argsort(evals)[::-1]]
     E = sorted_vecs[order]
     signs = jnp.sign(jnp.sum(E * target_basis, axis=1))

@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/18269709.svg)](https://doi.org/10.5281/zenodo.18269709)
+
 # GeoJax
 
 **GeoJax** is a fast, JAX-powered geometry and statistics toolkit for scientific computing, robotics, and ML pipelines. It provides efficient, differentiable routines for vector operations, alignment, projection, rotations, circular statistics, outlier detection, and more — all accelerated with [JAX](https://github.com/google/jax).
