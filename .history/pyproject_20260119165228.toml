@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GeoJax"
+version = "0.1.1"
+description = "Fast, JAX-powered geometry and statistics toolkit for scientific computing, robotics, and ML pipelines"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Nik Drummond", email = "nikolas.drummond@bi.mpg.de"}
+]
+keywords = ["jax", "geometry", "statistics", "robotics", "machine-learning", "3d"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+    "scipy>=1.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "sphinx>=5.0",
+    "sphinx-rtd-theme>=1.0",
+    "pytest-cov>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/GeoJax"  # UPDATE THIS
+Documentation = "https://geojax.readthedocs.io"  # UPDATE IF AVAILABLE
+Repository = "https://github.com/yourusername/GeoJax"  # UPDATE THIS
+"Bug Tracker" = "https://github.com/yourusername/GeoJax/issues"  # UPDATE THIS
+
+[tool.setuptools]
+packages = [
+    "GeoJax",
+    "GeoJax.core",
+    "GeoJax.angles",
+    "GeoJax.rotation",
+    "GeoJax.projection",
+    "GeoJax.alignment",
+    "GeoJax.analysis",
+    "GeoJax.bounds",
+    "GeoJax.circstats",
+    "GeoJax.distance",
+    "GeoJax.checks",
+    "GeoJax.basis",
+    "GeoJax.utils",
+]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "LICENSE.md"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --tb=short"
+testpaths = ["tests"]
+python_files = "test_*.py"
+log_cli = true
+log_level = "INFO"
+
+# Add black/isort configuration
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 88
